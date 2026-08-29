@@ -38,6 +38,7 @@ interface DashboardProps {
   privateMode?: boolean;
   onViewChange?: (isSubView: boolean) => void;
   isSyncing?: boolean;
+  isOnline?: boolean;
   onRefresh?: () => void;
 }
 
@@ -93,7 +94,8 @@ export default function Dashboard({
   privateMode = false, 
   onViewChange,
   isSyncing = false,
-  onRefresh
+  onRefresh,
+  isOnline = true
 }: DashboardProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
@@ -1016,9 +1018,9 @@ export default function Dashboard({
 
                 {!previewMode && (
                   <button 
-                    onClick={() => { setIsEditingAccount(true); setTempAccountNumber(accountNumber); }} 
-                    className="text-white/40 hover:text-white transition-all ml-1 p-0.5" 
-                    title="Edit Rekening"
+                    onClick={() => { if(isOnline) { setIsEditingAccount(true); setTempAccountNumber(accountNumber); } }} 
+                    className={`transition-all ml-1 p-0.5 ${isOnline ? 'text-white/40 hover:text-white' : 'text-white/20 cursor-not-allowed'}`} title={isOnline ? 'Edit Rekening' : 'Edit dinonaktifkan (Offline)'} 
+                    
                   >
                     <Edit2 className="w-3 h-3" />
                   </button>
@@ -1027,7 +1029,7 @@ export default function Dashboard({
             )}
             
             <div className="text-white/80 text-[10px] md:text-[11px] font-medium tracking-wide">
-              {(isSyncing || isRefreshing) ? `menyinkronkan${dots}` : 'tersinkron'}
+              {!isOnline ? (previewMode ? 'Offline - Mode Baca' : 'Offline - Tertunda') : ((isSyncing || isRefreshing) ? `menyinkronkan${dots}` : 'tersinkron')}
             </div>
           </div>
 

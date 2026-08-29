@@ -60,7 +60,9 @@ export function useFirebaseSync(
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
+  const [hasUnsyncedChanges, setHasUnsyncedChanges] = useState(false);
   const isOwner = useRef(false);
   const initialLoadDone = useRef(false);
   const prevTransactionsCount = useRef<number | null>(null);
@@ -68,6 +70,10 @@ export function useFirebaseSync(
 
   useEffect(() => {
     checkRedirectLogin();
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -138,6 +144,8 @@ export function useFirebaseSync(
     return () => {
       unsubscribeAuth();
       unsubscribeSnapshot();
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
     };
   }, [refreshTrigger]);
 
@@ -157,8 +165,14 @@ export function useFirebaseSync(
       status: expressionIndex !== undefined ? expressionIndex : 0
     });
 
+    const hasChanges = currentDataString !== lastDownloadedRef.current;
+    setHasUnsyncedChanges(!isOnline && hasChanges);
+
     // Jika data lokal sama dengan data yang terakhir diunduh/diupload, jangan upload ulang
-    if (currentDataString === lastDownloadedRef.current) {
+    if (!hasChanges) {
+      return;
+    }
+    if (!isOnline) {
       return;
     }
 
@@ -200,12 +214,12 @@ export function useFirebaseSync(
     // Debounce slightly
     const timeout = setTimeout(uploadData, 300);
     return () => clearTimeout(timeout);
-  }, [transactions, budget, showHistory, showNotifications, privateMode, accountNumber, todos, events, expressionIndex]);
+  }, [transactions, budget, showHistory, showNotifications, privateMode, accountNumber, todos, events, expressionIndex, isOnline]);
 
   const forceRefresh = () => {
     setIsSyncing(true);
     setRefreshTrigger(prev => prev + 1);
   };
 
-  return { isSyncing, currentUser, isAdmin, forceRefresh };
+  return { isSyncing, currentUser, isAdmin, forceRefresh, isOnline, hasUnsyncedChanges };
 }

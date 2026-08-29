@@ -21,6 +21,7 @@ const expressions = [Smile, Frown, Meh, Laugh, Annoyed, Heart];
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isDashboardSubView, setIsDashboardSubView] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [expressionIndex, setExpressionIndex] = useState<number>(0);
   
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -44,7 +45,7 @@ export default function App() {
   const [isSettingPin, setIsSettingPin] = useState<boolean>(false);
 
   // Loading & Firebase Sync State
-  const { isSyncing, currentUser, isAdmin, forceRefresh } = useFirebaseSync(
+  const { isSyncing, currentUser, isAdmin, forceRefresh, isOnline, hasUnsyncedChanges } = useFirebaseSync(
     transactions, setTransactions, 
     budget, setBudget, 
     showHistory, setShowHistory, 
@@ -93,6 +94,30 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  const isOnlineRef = React.useRef(isOnline);
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsyncedChanges) {
+        e.preventDefault();
+        e.returnValue = 'Anda memiliki data yang belum tersinkron. Jika Anda keluar sekarang, perubahan ini akan hilang.';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsyncedChanges]);
+  useEffect(() => {
+    if (isOnline !== isOnlineRef.current) {
+      if (!isOnline) {
+        showToast("📡 Mode Offline Aktif", "info");
+      } else {
+        showToast("📡 Kembali Online", "success");
+        setIsReconnecting(true);
+        setTimeout(() => setIsReconnecting(false), 1500);
+      }
+      isOnlineRef.current = isOnline;
+    }
+  }, [isOnline]);
 
   const handleAddTransaction = (t: Transaction) => {
     if (isViewer) {
@@ -241,12 +266,12 @@ export default function App() {
             <div className="flex items-center gap-2.5 overflow-hidden">
               <button 
                 onClick={() => {
-                  if (isAdmin && !previewMode) {
+                  if (isAdmin && !previewMode && isOnline) {
                     setExpressionIndex((prev) => (prev + 1) % expressions.length);
                   }
                 }} 
-                className={`w-10 h-10 rounded-full border-2 border-white bg-white/60 flex items-center justify-center shadow-sm overflow-hidden p-1.5 transition-all shrink-0 ${isAdmin && !previewMode ? 'hover:scale-105 cursor-pointer' : 'cursor-default opacity-80'}`}
-                title={isAdmin && !previewMode ? "Ubah status ekspresi" : "Status"}
+                className={`w-10 h-10 rounded-full border-2 border-white bg-white/60 flex items-center justify-center shadow-sm overflow-hidden p-1.5 transition-all shrink-0 ${isAdmin && !previewMode ? (isOnline ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-50 grayscale') : 'cursor-default opacity-80'}`}
+                title={isAdmin && !previewMode ? (isOnline ? 'Ubah status ekspresi' : 'Offline - tidak dapat diubah') : 'Status'}
               >
                 <img src={expressions[expressionIndex]} alt="expression" className="w-full h-full object-contain drop-shadow-sm" />
               </button>
@@ -283,9 +308,18 @@ export default function App() {
           >
           </div>
         )}
+
+        {/* Latar Belakang Overlay Atas (Nimpa Card Saldo) */}
+        {activeTab === 'dashboard' && !isDashboardSubView && (
+          <img 
+            src="https://res.cloudinary.com/dew39kqhy/image/upload/v1788017121/20260829_222451_0000_xdtcn4.png"
+            alt="Top Overlay"
+            className="absolute top-0 left-0 right-0 w-full h-[340px] md:h-[380px] object-cover object-top z-[15] pointer-events-none"
+          />
+        )}
         
         {/* Header Khusus HP */}
-        <header className="md:hidden sticky top-0 z-10 px-6 py-4 flex justify-between items-center">
+        <header className="md:hidden sticky top-0 z-30 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-9 h-9 drop-shadow-sm" />
             <div>
@@ -306,12 +340,12 @@ export default function App() {
             </button>
             <button 
               onClick={() => {
-                if (isAdmin && !previewMode) {
+                if (isAdmin && !previewMode && isOnline) {
                   setExpressionIndex((prev) => (prev + 1) % expressions.length);
                 }
               }} 
-              className={`w-7 h-7 flex items-center justify-center overflow-hidden transition-all ${isAdmin && !previewMode ? 'hover:scale-105 cursor-pointer' : 'cursor-default opacity-90'}`}
-              title={isAdmin && !previewMode ? "Ubah status" : "Status"}
+              className={`w-7 h-7 flex items-center justify-center overflow-hidden transition-all ${isAdmin && !previewMode ? (isOnline ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-50') : 'cursor-default opacity-90'}`}
+              title={isAdmin && !previewMode ? (isOnline ? 'Ubah status' : 'Offline - tidak dapat diubah') : 'Status'}
             >
               {(() => {
                 const ExpressionIcon = expressions[expressionIndex];
@@ -337,12 +371,14 @@ export default function App() {
               privateMode={privateMode} 
               onViewChange={setIsDashboardSubView} 
               isSyncing={isSyncing}
+              isOnline={isOnline}
               onRefresh={forceRefresh}
             />
           )}
           {activeTab === 'transaksi' && (
             <Transactions 
-              transactions={transactions} 
+              transactions={transactions}
+              isReconnecting={isReconnecting} 
               onAddTransaction={handleAddTransaction} 
               onDeleteTransaction={handleDeleteTransaction} 
               previewMode={isViewer} 

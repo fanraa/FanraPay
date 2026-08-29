@@ -10,9 +10,10 @@ interface TransactionsProps {
   previewMode?: boolean;
   showHistory?: boolean;
   privateMode?: boolean;
+  isReconnecting?: boolean;
 }
 
-export default function Transactions({ transactions, onAddTransaction, onDeleteTransaction, previewMode = false, showHistory = true, privateMode = false }: TransactionsProps) {
+export default function Transactions({ transactions, onAddTransaction, onDeleteTransaction, previewMode = false, showHistory = true, privateMode = false, isReconnecting = false }: TransactionsProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [type, setType] = useState<TransactionType>('pengeluaran');
   const [amount, setAmount] = useState('');
@@ -388,10 +389,10 @@ export default function Transactions({ transactions, onAddTransaction, onDeleteT
 
             <button 
               type="submit" 
-              disabled={isInsufficientBalance}
-              className={`w-full text-white text-xs font-bold py-2.5 rounded-xl mt-2 flex items-center justify-center gap-1.5 shadow-lg transition-colors ${isInsufficientBalance ? 'bg-[#E8E6E1] text-[#7A7A72] cursor-not-allowed shadow-none' : 'bg-[#4A6741] shadow-[#4A674122] hover:bg-[#3d5535]'}`}
+              disabled={isInsufficientBalance || isReconnecting}
+              className={`w-full text-white text-xs font-bold py-2.5 rounded-xl mt-2 flex items-center justify-center gap-1.5 shadow-lg transition-colors ${isInsufficientBalance ? 'bg-[#E8E6E1] text-[#7A7A72] cursor-not-allowed shadow-none' : (isReconnecting ? 'bg-[#4A6741]/50 text-white cursor-wait shadow-none' : 'bg-[#4A6741] shadow-[#4A674122] hover:bg-[#3d5535]')}`}
             >
-              <Save className="w-3.5 h-3.5" /> Simpan Transaksi
+              {isReconnecting ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Menyinkronkan...</> : <><Save className="w-3.5 h-3.5" /> Simpan Transaksi</>}
             </button>
           </form>
         </div>

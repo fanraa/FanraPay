@@ -398,6 +398,8 @@ export default function Family({
                         }
                       } catch (e) {}
                     }
+                  } else {
+                    sessionStorage.setItem('fanra_notif_ignored_session', 'true');
                   }
                   setShowNotifications(nextVal);
                 }}
