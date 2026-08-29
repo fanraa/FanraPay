@@ -67,11 +67,11 @@ export default function NotificationPermissionModal({
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2D2D2A]/60 backdrop-blur-md animate-in fade-in duration-300 touch-none select-none"
-      onClick={(e) => e.stopPropagation()}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-[#2D2D2A]/30 backdrop-blur-sm animate-in fade-in duration-300"
+      onClick={handleIgnore}
     >
       <div 
-        className="bg-white/95 backdrop-blur-2xl w-full max-w-sm rounded-[32px] p-6 md:p-7 border border-white/90 shadow-[0_20px_50px_rgba(0,0,0,0.25)] text-center animate-in zoom-in-95 duration-300 relative select-auto"
+        className="bg-white/95 backdrop-blur-2xl w-full max-w-sm rounded-[32px] p-6 md:p-7 border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.12)] text-center animate-in zoom-in-95 duration-300 relative"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-center">

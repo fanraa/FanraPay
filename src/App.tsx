@@ -87,25 +87,40 @@ export default function App() {
     }
   }, []);
 
+  const [toast, setToast] = useState<{ message: string; type?: 'error' | 'success' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'error' | 'success' | 'info' = 'info') => {
+    setToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3500);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   const handleAddTransaction = (t: Transaction) => {
     if (isViewer) {
-      alert("Hanya Admin yang dapat menambah transaksi.");
+      showToast("Hanya Admin yang dapat menambah transaksi.", "error");
       return;
     }
     setTransactions([...transactions, t]);
+    showToast("Transaksi berhasil dicatat!", "success");
   };
 
   const handleDeleteTransaction = (id: string) => {
     if (isViewer) {
-      alert("Hanya Admin yang dapat menghapus transaksi.");
+      showToast("Hanya Admin yang dapat menghapus transaksi.", "error");
       return;
     }
     setTransactions(transactions.filter(t => t.id !== id));
+    showToast("Transaksi berhasil dihapus.", "info");
   };
 
   const handleTogglePin = (enabled: boolean) => {
     if (isViewer) {
-      alert("Pengaturan keamanan hanya tersedia untuk Admin.");
+      showToast("Pengaturan keamanan hanya tersedia untuk Admin.", "error");
       return;
     }
     if (enabled) {
@@ -113,6 +128,7 @@ export default function App() {
     } else {
       setIsPinEnabled(false);
       setPinCode(null);
+      showToast("Kunci PIN telah dinonaktifkan.", "info");
     }
   };
 
@@ -165,6 +181,21 @@ export default function App() {
       {/* Pop-up Tambahkan ke Layar Utama (PWA) saat akun Google terhubung */}
       {!isLoading && (!isPinEnabled || !isAdmin || previewMode || isAuthenticated) && (
         <PwaInstallModal isLoggedIn={Boolean(currentUser)} />
+      )}
+
+      {/* Floating Global Toast Notification */}
+      {toast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[100] max-w-sm w-[90%] pointer-events-none animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className={`px-4 py-3 rounded-2xl border shadow-lg backdrop-blur-xl flex items-center justify-center gap-2 text-xs md:text-sm font-semibold text-center ${
+            toast.type === 'error'
+              ? 'bg-[#E63946]/90 text-white border-[#E63946]'
+              : toast.type === 'success'
+              ? 'bg-[#4A6741]/95 text-white border-[#4A6741]'
+              : 'bg-white/95 text-[#2D2D2A] border-[#E8E6E1] shadow-md'
+          }`}>
+            <span>{toast.message}</span>
+          </div>
+        </div>
       )}
 
       <div className={`min-h-screen bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3] text-[#2D2D2A] font-sans selection:bg-[#4A6741]/20 flex ${(!isAuthenticated && isPinEnabled && isAdmin && !previewMode && !isSettingPin) ? 'hidden' : ''}`}>

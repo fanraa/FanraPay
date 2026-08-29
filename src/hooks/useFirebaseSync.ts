@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { db, auth } from '../lib/firebase';
+import { db, auth, checkRedirectLogin } from '../lib/firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
@@ -49,6 +49,8 @@ export function useFirebaseSync(
   const prevTransactionsCount = useRef<number | null>(null);
 
   useEffect(() => {
+    checkRedirectLogin();
+
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       const isUserAdmin = Boolean(
