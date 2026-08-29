@@ -1,22 +1,38 @@
 {
-  "name": "Fanra - Finance Tracker",
-  "short_name": "Fanra",
+  "name": "FanraPay",
+  "short_name": "FanraPay",
   "start_url": "/",
+  "scope": "/",
+  "id": "fanrapay-app",
   "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay"],
+  "orientation": "portrait-primary",
   "background_color": "#F8F7F4",
-  "theme_color": "#4A6741",
+  "theme_color": "#F8F7F4",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/128/10473/10473393.png",
-      "sizes": "128x128",
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/10473/10473393.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

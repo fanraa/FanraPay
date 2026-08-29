@@ -73,8 +73,8 @@ export default function PinEntry({ correctPin, onSuccess, faceId, fingerprintId 
       `}</style>
       
       <div className="flex flex-col items-center justify-center mb-6">
-        <img src="https://cdn-icons-png.flaticon.com/128/10473/10473393.png" alt="Fanra Logo" className="w-14 h-14 drop-shadow-sm mb-2" />
-        <h1 className="text-xl font-bold tracking-tight text-[#2D2D2A]">Fanra</h1>
+        <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-14 h-14 drop-shadow-sm mb-2" />
+        <h1 className="text-xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
       </div>
       
       <h2 className="text-2xl font-bold text-[#2D2D2A] mb-2">

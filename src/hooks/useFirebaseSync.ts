@@ -9,9 +9,9 @@ function sendSystemNotification(title: string, body: string) {
 
   const options: NotificationOptions = {
     body,
-    icon: 'https://cdn-icons-png.flaticon.com/128/10473/10473393.png',
-    badge: 'https://cdn-icons-png.flaticon.com/128/10473/10473393.png',
-    tag: 'fanra-sync-notification'
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: 'fanrapay-sync-notification'
   };
 
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -40,6 +40,7 @@ export function useFirebaseSync(
   events?: any, setEvents?: any
 ) {
   const [isSyncing, setIsSyncing] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -80,7 +81,7 @@ export function useFirebaseSync(
                 : `Rp ${Number(latestTx.amount || 0).toLocaleString('id-ID')}`;
               const typeStr = latestTx.type === 'expense' ? 'Pengeluaran Baru' : 'Pemasukan Baru';
               sendSystemNotification(
-                `Fanra - ${typeStr}`,
+                `FanraPay - ${typeStr}`,
                 `${latestTx.category || 'Transaksi'}: ${latestTx.description ? `${latestTx.description} (${amountStr})` : amountStr}`
               );
             }
@@ -107,7 +108,7 @@ export function useFirebaseSync(
       unsubscribeAuth();
       unsubscribeSnapshot();
     };
-  }, []);
+  }, [refreshTrigger]);
 
   // Upload changes to Firebase (only if owner)
   useEffect(() => {
@@ -141,5 +142,10 @@ export function useFirebaseSync(
     return () => clearTimeout(timeout);
   }, [transactions, budget, showHistory, showNotifications, privateMode, accountNumber, todos, events]);
 
-  return { isSyncing, currentUser, isAdmin };
+  const forceRefresh = () => {
+    setIsSyncing(true);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  return { isSyncing, currentUser, isAdmin, forceRefresh };
 }

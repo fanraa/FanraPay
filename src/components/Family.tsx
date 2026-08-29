@@ -4,7 +4,8 @@ import { User } from 'firebase/auth';
 import { 
   Users, Shield, Lock, Smartphone, Fingerprint, ScanFace, 
   LogOut, CheckCircle2, Eye, Bell, KeyRound, Download, Check, 
-  AlertCircle, Loader2, X, ChevronRight 
+  AlertCircle, Loader2, X, ChevronRight, Share2, Globe, Copy, 
+  MessageSquare, Send, ExternalLink, Sparkles
 } from 'lucide-react';
 import { isBiometricSupported, registerBiometric } from '../utils/biometric';
 import { promptPwaInstall, isAppInstalled } from '../utils/pwa';
@@ -41,6 +42,8 @@ export default function Family({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<{ type: 'error' | 'success' | 'info'; text: string } | null>(null);
   const [showPwaGuideModal, setShowPwaGuideModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
   const [isStandaloneApp, setIsStandaloneApp] = useState(false);
   const [isIosDevice, setIsIosDevice] = useState(false);
 
@@ -105,7 +108,7 @@ export default function Family({
       setShowPwaGuideModal(true);
     } else if (res === 'accepted') {
       setIsStandaloneApp(true);
-      setFeedbackMessage({ type: 'success', text: 'Aplikasi Fanra berhasil ditambahkan ke layar utama!' });
+      setFeedbackMessage({ type: 'success', text: 'Aplikasi FanraPay berhasil ditambahkan ke layar utama!' });
     }
   };
 
@@ -163,6 +166,57 @@ export default function Family({
     }
   };
 
+  const getShareUrl = () => {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return 'https://fanrapay.vercel.app';
+  };
+
+  const shareTitle = 'FanraPay - Aplikasi Keuangan & Keluarga';
+  const shareText = 'Kelola keuangan pribadi & keluarga secara real-time dan pantau kalender akademik ITERA di FanraPay!';
+
+  const handleShareApp = async () => {
+    const shareUrl = getShareUrl();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') {
+          setShowShareModal(true);
+        }
+      }
+    } else {
+      setShowShareModal(true);
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    navigator.clipboard.writeText(getShareUrl());
+    setCopiedShareLink(true);
+    setFeedbackMessage({ type: 'success', text: 'Tautan FanraPay berhasil disalin ke papan klip!' });
+    setTimeout(() => setCopiedShareLink(false), 2500);
+  };
+
+  const handleShareWhatsApp = () => {
+    const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareTitle}\n${shareText}\n\n${getShareUrl()}`)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleShareTelegram = () => {
+    const url = `https://t.me/share/url?url=${encodeURIComponent(getShareUrl())}&text=${encodeURIComponent(shareTitle)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleShareTwitter = () => {
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(getShareUrl())}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20 md:pb-0 relative">
       
@@ -202,11 +256,23 @@ export default function Family({
               <img src="https://cdn-icons-png.flaticon.com/128/16133/16133885.png" alt="Akses Akun" className="w-6 h-6 object-contain" />
               <h2 className="font-bold text-xl text-[#2D2D2A]">Akses & Akun</h2>
             </div>
-            {isAdmin && (
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#4A6741]/10 text-[#4A6741] border border-[#4A6741]/20 flex items-center gap-1">
-                <Check className="w-3 h-3" /> Admin
-              </span>
-            )}
+            <div className="flex items-center gap-1.5">
+              {/* Tombol Bagikan Tanpa Box (Clean & Minimalist) */}
+              <button 
+                onClick={handleShareApp}
+                title="Bagikan Aplikasi FanraPay"
+                aria-label="Bagikan Aplikasi FanraPay"
+                className="p-2 text-[#7A7A72] hover:text-[#2D2D2A] hover:bg-black/5 active:scale-90 transition-all rounded-full cursor-pointer flex items-center justify-center group"
+              >
+                <Share2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
+              </button>
+
+              {isAdmin && (
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#4A6741]/10 text-[#4A6741] border border-[#4A6741]/20 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Admin
+                </span>
+              )}
+            </div>
           </div>
 
           {isAdmin ? (
@@ -226,7 +292,7 @@ export default function Family({
               </div>
               <p className="text-xs text-[#2D2D2A] font-semibold">{currentUser.email}</p>
               <p className="text-[11px] text-[#7A7A72] mt-1.5 leading-relaxed">
-                Akun Anda terhubung dengan aplikasi Fanra untuk pemantauan data keuangan secara real-time.
+                Akun Anda terhubung dengan aplikasi FanraPay untuk pemantauan data keuangan secara real-time.
               </p>
             </div>
           ) : (
@@ -291,7 +357,7 @@ export default function Family({
               <div className="pr-2">
                 <p className="text-sm font-bold text-[#2D2D2A] mb-0.5">Aplikasi di Layar HP</p>
                 <p className="text-[11px] text-[#7A7A72] leading-relaxed">
-                  Pasang Fanra di layar utama HP Anda untuk akses cepat satu ketukan dan tampilan layar penuh.
+                  Pasang FanraPay di layar utama HP Anda untuk akses cepat satu ketukan dan tampilan layar penuh.
                 </p>
               </div>
               {isStandaloneApp ? (
@@ -497,7 +563,7 @@ export default function Family({
             </div>
 
             <h3 className="text-lg font-bold text-[#2D2D2A] mb-1">
-              Pasang Fanra di Layar HP
+              Pasang FanraPay di Layar HP
             </h3>
             <p className="text-xs text-[#7A7A72] mb-5">
               Ikuti langkah mudah berikut sesuai jenis HP Anda:
@@ -530,6 +596,94 @@ export default function Family({
               className="w-full py-3 rounded-2xl bg-[#4A6741] hover:bg-[#3D5635] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
             >
               Saya Mengerti
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal (WhatsApp, Telegram, X, Copy Link) */}
+      {showShareModal && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowShareModal(false)}
+        >
+          <div 
+            className="bg-white/95 backdrop-blur-2xl w-full max-w-sm rounded-[32px] p-6 border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.15)] text-center animate-in zoom-in-95 duration-200 text-[#2D2D2A] relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setShowShareModal(false)}
+              className="absolute top-4 right-4 p-2 text-[#7A7A72] hover:text-[#2D2D2A] hover:bg-black/5 rounded-full transition-all cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="w-14 h-14 rounded-2xl bg-[#4A6741]/10 border border-[#4A6741]/20 mx-auto flex items-center justify-center mb-3.5">
+              <Share2 className="w-7 h-7 text-[#4A6741]" />
+            </div>
+
+            <h3 className="text-lg font-bold text-[#2D2D2A] mb-1">
+              Bagikan FanraPay
+            </h3>
+            <p className="text-xs text-[#7A7A72] mb-5">
+              Ajak keluarga dan teman menggunakan aplikasi pencatatan keuangan & kalender akademik FanraPay.
+            </p>
+
+            {/* Quick Share Buttons */}
+            <div className="grid grid-cols-3 gap-2.5 mb-5">
+              <button 
+                onClick={handleShareWhatsApp}
+                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/20 text-[#25D366] transition-all cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-sm">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <span className="text-[11px] font-bold text-[#2D2D2A]">WhatsApp</span>
+              </button>
+
+              <button 
+                onClick={handleShareTelegram}
+                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-[#0088cc]/10 hover:bg-[#0088cc]/20 border border-[#0088cc]/20 text-[#0088cc] transition-all cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#0088cc] text-white flex items-center justify-center shadow-sm">
+                  <Send className="w-4 h-4 translate-x-[-1px] translate-y-[1px]" />
+                </div>
+                <span className="text-[11px] font-bold text-[#2D2D2A]">Telegram</span>
+              </button>
+
+              <button 
+                onClick={handleShareTwitter}
+                className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-black/5 hover:bg-black/10 border border-black/10 text-[#2D2D2A] transition-all cursor-pointer"
+              >
+                <div className="w-8 h-8 rounded-full bg-[#2D2D2A] text-white flex items-center justify-center shadow-sm font-bold text-xs">
+                  X
+                </div>
+                <span className="text-[11px] font-bold text-[#2D2D2A]">Twitter</span>
+              </button>
+            </div>
+
+            {/* Link Copy Box */}
+            <div className="flex items-center gap-2 p-2 bg-[#F8F7F4] border border-[#E8E6E1] rounded-2xl mb-4 text-left">
+              <input 
+                type="text" 
+                readOnly 
+                value={getShareUrl()} 
+                className="flex-1 bg-transparent px-2 text-xs font-mono text-[#7A7A72] truncate outline-none"
+              />
+              <button 
+                onClick={handleCopyShareLink}
+                className="px-3 py-1.5 rounded-xl bg-[#4A6741] hover:bg-[#3D5635] text-white text-xs font-bold transition-all flex items-center gap-1 shrink-0 cursor-pointer shadow-sm"
+              >
+                {copiedShareLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedShareLink ? 'Tersalin' : 'Salin'}</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="w-full py-2.5 rounded-2xl bg-[#F0EFEC] hover:bg-[#E8E6E1] text-[#2D2D2A] font-bold text-xs transition-all cursor-pointer"
+            >
+              Tutup
             </button>
           </div>
         </div>

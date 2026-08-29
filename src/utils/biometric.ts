@@ -14,11 +14,11 @@ export const registerBiometric = async (): Promise<string | null> => {
     const cred = await navigator.credentials.create({
       publicKey: {
         challenge,
-        rp: { name: "Fanra App", id: window.location.hostname },
+        rp: { name: "FanraPay", id: window.location.hostname },
         user: {
           id: userId,
-          name: "owner@fanra",
-          displayName: "Fanra Owner"
+          name: "owner@fanrapay",
+          displayName: "FanraPay Owner"
         },
         pubKeyCredParams: [
           { type: "public-key", alg: -7 },

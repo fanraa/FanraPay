@@ -18,3 +18,7 @@ service cloud.firestore {
     }
   }
 }
+
+git add .
+git commit -m "update"
+git push

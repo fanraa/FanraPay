@@ -82,8 +82,8 @@ export default function PwaInstallModal({ isLoggedIn }: PwaInstallModalProps) {
         <div className="mb-4 flex items-center justify-center">
           <div className="w-16 h-16 rounded-2xl bg-[#4A6741]/10 border border-[#4A6741]/20 flex items-center justify-center shadow-sm">
             <img 
-              src="https://cdn-icons-png.flaticon.com/128/10473/10473393.png" 
-              alt="Fanra App" 
+              src="/icons/icon-192.png" 
+              alt="FanraPay App" 
               className="w-10 h-10 object-contain drop-shadow-sm"
             />
           </div>
@@ -96,7 +96,7 @@ export default function PwaInstallModal({ isLoggedIn }: PwaInstallModalProps) {
         {!showManualGuide ? (
           <>
             <p className="text-xs text-[#7A7A72] leading-relaxed mb-6 px-2">
-              Pasang aplikasi Fanra di layar beranda HP Anda untuk kemudahan akses satu ketukan dan tampilan layar penuh tanpa browser.
+              Pasang aplikasi FanraPay di layar beranda HP Anda untuk kemudahan akses satu ketukan dan tampilan layar penuh tanpa browser.
             </p>
 
             <div className="space-y-2.5">

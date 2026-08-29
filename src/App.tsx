@@ -51,7 +51,7 @@ export default function App() {
   const [isSettingPin, setIsSettingPin] = useState<boolean>(false);
 
   // Loading & Firebase Sync State
-  const { isSyncing, currentUser, isAdmin } = useFirebaseSync(
+  const { isSyncing, currentUser, isAdmin, forceRefresh } = useFirebaseSync(
     transactions, setTransactions, 
     budget, setBudget, 
     showHistory, setShowHistory, 
@@ -137,8 +137,8 @@ export default function App() {
       {isLoading && (
         <div className={`fixed inset-0 z-[999] flex flex-col items-center justify-between bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3] transition-opacity duration-500 ease-in-out ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
           <div className="flex-1 flex flex-col items-center justify-center pt-16">
-            <img src="https://cdn-icons-png.flaticon.com/128/10473/10473393.png" alt="Fanra Logo" className="w-16 h-16 drop-shadow-md animate-pulse mb-3" />
-            <h1 className="text-2xl font-bold tracking-tight text-[#2D2D2A]">Fanra</h1>
+            <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-16 h-16 drop-shadow-md animate-pulse mb-3" />
+            <h1 className="text-2xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
           </div>
           <div className="pb-8">
             <p className="text-[10px] md:text-xs text-[#7A7A72]/60 font-medium uppercase tracking-widest">
@@ -202,9 +202,9 @@ export default function App() {
       {/* Sidebar untuk Desktop */}
       <aside className="hidden md:flex flex-col w-64 fixed inset-y-0 left-0 bg-white/60 backdrop-blur-2xl border-r border-white/80 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-30">
         <div className="p-6 border-b border-white/80 flex items-center gap-3">
-          <img src="https://cdn-icons-png.flaticon.com/128/10473/10473393.png" alt="Fanra Logo" className="w-9 h-9 drop-shadow-sm" />
+          <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-9 h-9 drop-shadow-sm" />
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[#2D2D2A]">Fanra</h1>
+            <h1 className="text-xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
           </div>
         </div>
         
@@ -245,7 +245,7 @@ export default function App() {
               </button>
               <div className="flex flex-col truncate">
                 <span className="text-[12px] font-bold text-[#2D2D2A] truncate">
-                  {isAdmin ? 'Irfan Rizki Aditri' : (currentUser ? currentUser.email?.split('@')[0] : 'Fanra')}
+                  {isAdmin ? 'Irfan Rizki Aditri' : (currentUser ? currentUser.email?.split('@')[0] : 'FanraPay')}
                 </span>
                 <span className="text-[10px] text-[#7A7A72] font-medium truncate">
                   {currentUser ? currentUser.email : 'Aplikasi Keuangan'}
@@ -261,9 +261,9 @@ export default function App() {
         {/* Header Khusus HP */}
         <header className="md:hidden bg-white/50 backdrop-blur-xl border-b border-white/60 sticky top-0 z-10 px-6 py-3 flex justify-between items-center shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
           <div className="flex items-center gap-3">
-            <img src="https://cdn-icons-png.flaticon.com/128/10473/10473393.png" alt="Fanra Logo" className="w-9 h-9 drop-shadow-sm" />
+            <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-9 h-9 drop-shadow-sm" />
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-[#2D2D2A]">Fanra</h1>
+              <h1 className="text-xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -296,6 +296,8 @@ export default function App() {
               previewMode={isViewer} 
               privateMode={privateMode} 
               onViewChange={setIsDashboardSubView} 
+              isSyncing={isSyncing}
+              onRefresh={forceRefresh}
             />
           )}
           {activeTab === 'transaksi' && (

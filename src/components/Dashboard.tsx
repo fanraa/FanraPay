@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Transaction, Todo, AppEvent } from '../types';
-import { TrendingUp, TrendingDown, AlertTriangle, Target, Wallet, CheckSquare, Calendar, Sparkles, Clock, X, Check, MapPin, ChevronDown, ChevronLeft, ChevronRight, Info, Bell, PieChart as PieChartIcon, Copy, Edit2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Target, Wallet, CheckSquare, Calendar, Sparkles, Clock, X, Check, MapPin, ChevronDown, ChevronLeft, ChevronRight, Info, Bell, PieChart as PieChartIcon, Copy, Edit2, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { useStorage } from '../hooks/useStorage';
 
@@ -37,6 +37,8 @@ interface DashboardProps {
   previewMode?: boolean;
   privateMode?: boolean;
   onViewChange?: (isSubView: boolean) => void;
+  isSyncing?: boolean;
+  onRefresh?: () => void;
 }
 
 const allSchedules: Record<number, {day: string, classes: {time: string, name: string, room: string, lecturer: string}[]}[]> = {
@@ -89,7 +91,9 @@ export default function Dashboard({
   setEvents: propSetEvents,
   previewMode = false, 
   privateMode = false, 
-  onViewChange 
+  onViewChange,
+  isSyncing = false,
+  onRefresh
 }: DashboardProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
@@ -101,6 +105,82 @@ export default function Dashboard({
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [tempAccountNumber, setTempAccountNumber] = useState(accountNumber);
   const [isCopied, setIsCopied] = useState(false);
+
+  // Modals/View state
+  const [activeView, setActiveView] = useState<'main' | 'kebutuhan' | 'jadwal' | 'acara'>('main');
+  const [activeInfoId, setActiveInfoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (onViewChange) {
+      onViewChange(activeView !== 'main');
+    }
+  }, [activeView, onViewChange]);
+
+  // Pull to refresh states
+  const [pullStartY, setPullStartY] = useState(0);
+  const [pullMoveY, setPullMoveY] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Reset pull states when switching subviews so no indicator flashes
+  useEffect(() => {
+    setIsPulling(false);
+    setIsRefreshing(false);
+    setPullMoveY(0);
+    setPullStartY(0);
+  }, [activeView]);
+
+  const handlePullStart = (e: React.TouchEvent) => {
+    if (activeView !== 'main') return;
+    if (window.scrollY <= 0) {
+      setPullStartY(e.touches[0].clientY);
+      setIsPulling(true);
+    }
+  };
+
+  const handlePullMove = (e: React.TouchEvent) => {
+    if (!isPulling || activeView !== 'main') return;
+    const y = e.touches[0].clientY;
+    const deltaY = y - pullStartY;
+    if (deltaY > 0 && window.scrollY <= 0) {
+      setPullMoveY(deltaY);
+    } else {
+      setPullMoveY(0);
+    }
+  };
+
+  const handlePullEnd = () => {
+    if (!isPulling || activeView !== 'main') return;
+    setIsPulling(false);
+    if (pullMoveY > 75) {
+      setIsRefreshing(true);
+      if (onRefresh) onRefresh();
+      
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullMoveY(0);
+      }, 1000);
+    } else {
+      setPullMoveY(0);
+    }
+  };
+  
+  // Logarithmic smooth resistance curve
+  const pullDistance = isPulling 
+    ? Math.min(65, Math.pow(Math.max(0, pullMoveY), 0.8) * 1.5) 
+    : (isRefreshing ? 44 : 0);
+
+  const [dots, setDots] = useState('');
+  useEffect(() => {
+    if (isSyncing || isRefreshing) {
+      const interval = setInterval(() => {
+        setDots(prev => prev.length >= 3 ? '.' : prev + '.');
+      }, 400);
+      return () => clearInterval(interval);
+    } else {
+      setDots('');
+    }
+  }, [isSyncing, isRefreshing]);
 
   useEffect(() => {
     setTempAccountNumber(accountNumber);
@@ -138,15 +218,6 @@ export default function Dashboard({
     setIsEditingAccount(false);
   };
   
-  // Modals/View state
-  const [activeView, setActiveView] = useState<'main' | 'kebutuhan' | 'jadwal' | 'acara'>('main');
-  const [activeInfoId, setActiveInfoId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (onViewChange) {
-      onViewChange(activeView !== 'main');
-    }
-  }, [activeView, onViewChange]);
   const [currentSemester, setCurrentSemester] = useState(3);
   const [localTodos, setLocalTodos] = useStorage<Todo[]>('fanra_v2_todos', []);
   const todos = propTodos || localTodos;
@@ -275,11 +346,20 @@ export default function Dashboard({
   const [newEventLocation, setNewEventLocation] = useState('');
   const [newEventEndDate, setNewEventEndDate] = useState('');
 
+  // Gabungkan Agenda ITERA dengan Acara Kustom Pengguna
+  const iteraEventsList = useMemo(() => generateIteraEvents(), []);
+  const allEvents = useMemo(() => {
+    const userEvents = events || [];
+    const userEventIds = new Set(userEvents.map(e => e.id));
+    const filteredItera = iteraEventsList.filter(e => !userEventIds.has(e.id));
+    return [...filteredItera, ...userEvents];
+  }, [events, iteraEventsList]);
+
   // Banner Info Acara Hari Ini
   const [currentEventIndex, setCurrentEventIndex] = useState(0);
   const localToday = getLocalYYYYMMDD(new Date());
   
-  const todaysEvents = events.filter(e => {
+  const todaysEvents = allEvents.filter(e => {
     if (e.endDate) {
       return localToday >= e.date && localToday <= e.endDate;
     }
@@ -640,7 +720,7 @@ export default function Dashboard({
 
   if (activeView === 'acara') {
     const currentMonthStr = `${currentCalYear}-${String(currentCalMonth + 1).padStart(2, '0')}`;
-    const currentMonthEvents = events.filter(e => {
+    const currentMonthEvents = allEvents.filter(e => {
       if (e.endDate) {
         return (e.date.startsWith(currentMonthStr) || e.endDate.startsWith(currentMonthStr) || (e.date < currentMonthStr + '-01' && e.endDate >= currentMonthStr + '-31'));
       }
@@ -690,7 +770,7 @@ export default function Dashboard({
             {Array.from({ length: calDaysInMonth }).map((_, i) => {
               const day = i + 1;
               const dateStr = `${currentCalYear}-${String(currentCalMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const hasEvent = events.some(e => {
+              const hasEvent = allEvents.some(e => {
                 if (e.endDate) {
                   return dateStr >= e.date && dateStr <= e.endDate;
                 }
@@ -702,14 +782,17 @@ export default function Dashboard({
                 <button 
                   key={day}
                   onClick={() => setSelectedDate(dateStr)}
-                  className={`h-9 rounded-xl text-[13px] font-bold relative flex items-center justify-center transition-all
+                  className={`h-9 rounded-xl text-[13px] font-bold relative flex flex-col items-center justify-center transition-all
                     ${isSelected 
                       ? 'bg-[#2D2D2A] text-white shadow-md' 
                       : 'text-[#2D2D2A] hover:bg-[#F0EFEC]'
                     }
                   `}
                 >
-                  {day}
+                  <span className="leading-none">{day}</span>
+                  {hasEvent && (
+                    <span className={`w-1 h-1 rounded-full mt-0.5 ${isSelected ? 'bg-white' : 'bg-[#4A6741]'}`}></span>
+                  )}
                 </button>
               );
             })}
@@ -811,7 +894,34 @@ export default function Dashboard({
   }
 
   return (
-    <div className="flex flex-col gap-5 lg:gap-6">
+    <div 
+      className="flex flex-col gap-5 lg:gap-6 relative"
+      onTouchStart={handlePullStart}
+      onTouchMove={handlePullMove}
+      onTouchEnd={handlePullEnd}
+    >
+      {/* Floating Pull-to-Refresh Indicator - Exactly Centered */}
+      {((isPulling && pullDistance > 12) || isRefreshing) && (
+        <div 
+          className="fixed top-3 inset-x-0 mx-auto w-fit z-50 pointer-events-none transition-all duration-200 flex items-center justify-center"
+          style={{ 
+            transform: `translateY(${pullDistance}px)`,
+            opacity: isRefreshing ? 1 : Math.min(1, Math.max(0, (pullDistance - 10) / 25))
+          }}
+        >
+          <div className="bg-white/95 backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#E8E6E1] rounded-full px-4 py-2 flex items-center gap-2.5">
+            <Loader2 
+              className={`w-4 h-4 text-[#4A6741] ${isRefreshing ? 'animate-spin' : ''}`} 
+              style={{ transform: !isRefreshing ? `rotate(${Math.min(360, pullDistance * 7)}deg)` : undefined }} 
+            />
+            <span className="text-xs font-bold text-[#2D2D2A]">
+              {isRefreshing ? 'Menyinkronkan...' : (pullDistance >= 45 ? 'Lepas untuk perbarui' : 'Tarik untuk perbarui')}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-5 lg:gap-6">
       {todaysEvents.length > 0 && (
         <div className="bg-white/60 backdrop-blur-md border border-white/60 rounded-2xl px-4 py-2.5 shadow-sm flex items-center gap-3 relative overflow-hidden h-[56px] shrink-0">
           <div className="w-9 h-9 rounded-full bg-[#4A6741]/10 flex items-center justify-center shrink-0">
@@ -902,6 +1012,10 @@ export default function Dashboard({
                 )}
               </div>
             )}
+            
+            <div className="text-white/80 text-[10px] md:text-[11px] font-medium tracking-wide">
+              {(isSyncing || isRefreshing) ? `menyinkronkan${dots}` : 'tersinkron'}
+            </div>
           </div>
 
           <div className="relative z-10 text-center mb-6">
@@ -1148,6 +1262,7 @@ export default function Dashboard({
         </div>
       </div>
       </div>
+    </div>
     </div>
     </div>
   );
