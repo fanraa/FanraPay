@@ -60,6 +60,7 @@ export default function App() {
   // Viewer mode is active if user is NOT Admin, OR if Admin explicitly enabled Preview Mode
   const isViewer = !isAdmin || previewMode;
 
+  const isFirstLoadRef = React.useRef(!sessionStorage.getItem('fanra_has_loaded_once'));
   const [isLoading, setIsLoading] = useState(true);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
@@ -70,6 +71,9 @@ export default function App() {
         setIsFadingOut(true);
         setTimeout(() => {
           setIsLoading(false);
+          if (isFirstLoadRef.current) {
+            sessionStorage.setItem('fanra_has_loaded_once', 'true');
+          }
         }, 600); // durasi animasi fade out
       }, 1000); // durasi minimal loading screen tampil (1 detik)
     };
@@ -119,6 +123,52 @@ export default function App() {
     }
   }, [isOnline]);
 
+  const activeTabRef = React.useRef(activeTab);
+  const isDashboardSubViewRef = React.useRef(isDashboardSubView);
+  const lastBackPressRef = React.useRef(0);
+
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+    isDashboardSubViewRef.current = isDashboardSubView;
+  }, [activeTab, isDashboardSubView]);
+
+  // Mencegah HP langsung close app saat tekan back button dan memberikan peringatan keluar
+  useEffect(() => {
+    // Berikan status awal (trap pertama)
+    window.history.pushState({ internal: true }, '', window.location.href);
+
+    const handlePopState = (e: PopStateEvent) => {
+      const currentTab = activeTabRef.current;
+      const isSubView = isDashboardSubViewRef.current;
+      const isNotMain = currentTab !== 'dashboard' || isSubView;
+
+      if (isNotMain) {
+        // Jika sedang di menu lain, kembalikan ke beranda
+        if (currentTab === 'notifikasi') setActiveTab('dashboard');
+        else if (isSubView) setIsDashboardSubView(false);
+        else if (currentTab !== 'dashboard') setActiveTab('dashboard');
+
+        // Pasang kembali perangkap back (agar tidak keluar setelah kembali ke beranda)
+        window.history.pushState({ internal: true }, '', window.location.href);
+      } else {
+        // Sedang di beranda utama
+        const now = Date.now();
+        if (now - lastBackPressRef.current < 2000) {
+          // Telah ditekan 2 kali dalam 2 detik, biarkan fungsi back browser bekerja alaminya (menutup app)
+        } else {
+          // Tekan back pertama kali
+          lastBackPressRef.current = now;
+          showToast("Tekan kembali sekali lagi untuk keluar", "info");
+          // Pasang kembali perangkap
+          window.history.pushState({ internal: true }, '', window.location.href);
+        }
+      }
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleAddTransaction = (t: Transaction) => {
     if (isViewer) {
       showToast("Hanya Admin yang dapat menambah transaksi.", "error");
@@ -154,16 +204,39 @@ export default function App() {
   return (
     <>
       {isLoading && (
-        <div className={`fixed inset-0 z-[999] flex flex-col items-center justify-between bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3] transition-opacity duration-500 ease-in-out ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
-          <div className="flex-1 flex flex-col items-center justify-center pt-16">
-            <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-16 h-16 drop-shadow-md animate-pulse mb-3" />
-            <h1 className="text-2xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
-          </div>
-          <div className="pb-8">
-            <p className="text-[10px] md:text-xs text-[#7A7A72]/60 font-medium uppercase tracking-widest">
-              by Irfan Rizki Aditri
-            </p>
-          </div>
+        <div className={`fixed inset-0 z-[999] flex flex-col items-center justify-center transition-opacity duration-500 ease-in-out ${isFadingOut ? 'opacity-0' : 'opacity-100'} ${isFirstLoadRef.current ? 'bg-[#F8F7F4]' : 'bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3]'}`}>
+          {isFirstLoadRef.current ? (
+            <>
+              {/* Layar Loading Khusus Mobile Awal */}
+              <div className="md:hidden w-full h-full flex items-center justify-center">
+                <img src="https://res.cloudinary.com/dew39kqhy/image/upload/v1788022638/Kelola._Catat._Tumbuh._20260829_235544_0000_cwxkj8.png" alt="FanraPay Loading" className="w-full h-full object-cover" />
+              </div>
+              {/* Layar Loading Desktop Awal */}
+              <div className="hidden md:flex flex-1 flex-col items-center justify-center w-full h-full">
+                <div className="flex-1 flex flex-col items-center justify-center pt-16">
+                  <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-16 h-16 drop-shadow-md animate-pulse mb-3" />
+                  <h1 className="text-2xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
+                </div>
+                <div className="pb-8">
+                  <p className="text-[10px] md:text-xs text-[#7A7A72]/60 font-medium uppercase tracking-widest">
+                    by Irfan Rizki Aditri
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex-1 flex flex-col items-center justify-center pt-16">
+                <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-16 h-16 drop-shadow-md animate-pulse mb-3" />
+                <h1 className="text-2xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
+              </div>
+              <div className="pb-8">
+                <p className="text-[10px] md:text-xs text-[#7A7A72]/60 font-medium uppercase tracking-widest">
+                  by Irfan Rizki Aditri
+                </p>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -407,16 +480,6 @@ export default function App() {
             />
           )}
 
-          <AnimatePresence>
-            {activeTab === 'notifikasi' && (
-              <NotificationView 
-                transactions={transactions}
-                events={events}
-                todos={todos}
-                onBack={() => setActiveTab('dashboard')}
-              />
-            )}
-          </AnimatePresence>
         </main>
 
         {/* Latar Belakang Foto Bawah (Beranda, Transaksi, Keluarga) - Absolute di dasar konten */}
@@ -493,6 +556,18 @@ export default function App() {
             </button>
           </div>
         </nav>
+
+        {/* Notifikasi diletakkan di luar <main> agar z-index nya tidak tertutup oleh header */}
+        <AnimatePresence>
+          {activeTab === 'notifikasi' && (
+            <NotificationView 
+              transactions={transactions}
+              events={events}
+              todos={todos}
+              onBack={() => setActiveTab('dashboard')}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </div>
     </>
