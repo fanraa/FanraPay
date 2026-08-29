@@ -1,9 +1,11 @@
 {
   "name": "FanraPay",
-  "description": "Aplikasi pencatatan keuangan pribadi dan keluarga dengan sinkronisasi real-time.",
+  "description": "Aplikasi pencatatan keuangan pribadi dengan fitur Family Shared Space.",
   "requestFramePermissions": [
     "publickey-credentials-create",
     "publickey-credentials-get"
   ],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

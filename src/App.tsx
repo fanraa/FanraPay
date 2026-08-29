@@ -113,7 +113,7 @@ export default function App() {
       } else {
         showToast("📡 Kembali Online", "success");
         setIsReconnecting(true);
-        setTimeout(() => setIsReconnecting(false), 1500);
+        setTimeout(() => setIsReconnecting(false), 1000);
       }
       isOnlineRef.current = isOnline;
     }

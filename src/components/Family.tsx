@@ -389,6 +389,9 @@ export default function Family({
               <button 
                 onClick={async () => {
                   const nextVal = !showNotifications;
+                  // Update UI state immediately so the custom modal doesn't pop up while waiting for native permission
+                  setShowNotifications(nextVal);
+                  
                   if (nextVal) {
                     sessionStorage.removeItem('fanra_notif_ignored_session');
                     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -401,7 +404,6 @@ export default function Family({
                   } else {
                     sessionStorage.setItem('fanra_notif_ignored_session', 'true');
                   }
-                  setShowNotifications(nextVal);
                 }}
                 className={`w-12 h-6 md:w-14 md:h-7 rounded-full relative shadow-inner shrink-0 transition-colors ${showNotifications ? 'bg-[#4A6741]' : 'bg-[#E8E6E1]'}`}
               >
