@@ -45,9 +45,9 @@ export function useFirebaseSync(
   const [isAdmin, setIsAdmin] = useState(false);
 
   const isOwner = useRef(false);
-  const skipNextUpload = useRef(false);
   const initialLoadDone = useRef(false);
   const prevTransactionsCount = useRef<number | null>(null);
+  const lastDownloadedRef = useRef<string>('');
 
   useEffect(() => {
     checkRedirectLogin();
@@ -69,7 +69,18 @@ export function useFirebaseSync(
       setIsSyncing(false);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        skipNextUpload.current = true; // Prevent re-uploading what we just downloaded
+        
+        // Simpan versi stringified dari data Firebase untuk perbandingan
+        lastDownloadedRef.current = JSON.stringify({
+          transactions: data.transactions || [],
+          budget: data.budget !== undefined ? data.budget : 5000000,
+          showHistory: data.showHistory !== undefined ? data.showHistory : true,
+          showNotifications: data.showNotifications !== undefined ? data.showNotifications : false,
+          privateMode: data.privateMode !== undefined ? data.privateMode : false,
+          accountNumber: data.accountNumber || '',
+          todos: data.todos || [],
+          events: data.events || []
+        });
 
         if (data.transactions) {
           // Check if there are new transactions added
@@ -113,25 +124,39 @@ export function useFirebaseSync(
   // Upload changes to Firebase (only if owner)
   useEffect(() => {
     if (!isOwner.current) return;
-    if (skipNextUpload.current) {
-      skipNextUpload.current = false;
+    
+    const currentDataString = JSON.stringify({
+      transactions: transactions || [],
+      budget: budget !== undefined ? budget : 5000000,
+      showHistory: showHistory !== undefined ? showHistory : true,
+      showNotifications: showNotifications !== undefined ? showNotifications : false,
+      privateMode: privateMode !== undefined ? privateMode : false,
+      accountNumber: accountNumber || '',
+      todos: todos || [],
+      events: events || []
+    });
+
+    // Jika data lokal sama dengan data yang terakhir diunduh/diupload, jangan upload ulang
+    if (currentDataString === lastDownloadedRef.current) {
       return;
     }
-    
+
     const uploadData = async () => {
       try {
         const docRef = doc(db, 'fanra', 'irfan_family_data');
         await setDoc(docRef, {
-          transactions,
-          budget,
-          showHistory,
-          showNotifications,
-          privateMode,
+          transactions: transactions || [],
+          budget: budget !== undefined ? budget : 5000000,
+          showHistory: showHistory !== undefined ? showHistory : true,
+          showNotifications: showNotifications !== undefined ? showNotifications : false,
+          privateMode: privateMode !== undefined ? privateMode : false,
           accountNumber: accountNumber || '',
           todos: todos || [],
           events: events || [],
           updatedAt: new Date().toISOString()
         });
+        // Update referensi terakhir agar kita tahu data ini sudah tersinkronisasi
+        lastDownloadedRef.current = currentDataString;
       } catch (err) {
         console.error("Firebase sync error:", err);
       }

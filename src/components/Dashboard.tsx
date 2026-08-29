@@ -520,7 +520,7 @@ export default function Dashboard({
     return (
       <div className="flex flex-col h-full min-h-[60vh]">
         <div className="flex items-center gap-3 px-2 mb-6">
-          <button onClick={() => setActiveView('main')} className="p-2 -ml-2 hover:bg-white/60 rounded-full transition-colors">
+          <button onClick={() => setActiveView('main')} className="p-2 -ml-2 text-[#2D2D2A] hover:bg-black/5 rounded-full transition-colors drop-shadow-none">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           </button>
           <h3 className="font-bold text-lg text-[#2D2D2A]">Kebutuhan & Checklist</h3>
@@ -647,7 +647,7 @@ export default function Dashboard({
     return (
       <div className="flex flex-col h-full min-h-[60vh]">
         <div className="flex items-center gap-3 px-2 mb-6">
-          <button onClick={() => setActiveView('main')} className="p-2 -ml-2 hover:bg-white/60 rounded-full transition-colors">
+          <button onClick={() => setActiveView('main')} className="p-2 -ml-2 text-[#2D2D2A] hover:bg-black/5 rounded-full transition-colors drop-shadow-none">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           </button>
           <div>
@@ -730,10 +730,10 @@ export default function Dashboard({
     return (
       <div className="flex flex-col h-full min-h-[60vh]">
         <div className="flex items-center gap-3 px-2 mb-6">
-          <button onClick={() => setActiveView('main')} className="p-2 -ml-2 hover:bg-white/60 rounded-full transition-colors">
+          <button onClick={() => setActiveView('main')} className="p-2 -ml-2 text-[#2D2D2A] hover:bg-black/5 rounded-full transition-colors drop-shadow-none">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           </button>
-          <h3 className="font-bold text-lg text-[#2D2D2A]">Agenda & Acara</h3>
+          <h3 className="font-bold text-lg text-[#2D2D2A]">Agenda & Jadwal</h3>
         </div>
 
         <div 
@@ -862,7 +862,7 @@ export default function Dashboard({
                 type="text" 
                 value={newEventTitle}
                 onChange={(e) => setNewEventTitle(e.target.value)}
-                placeholder="Nama Acara..." 
+                placeholder="Nama Agenda..." 
                 className="w-full bg-[#F0EFEC] border border-transparent focus:border-[#4A6741]/30 focus:bg-white rounded-xl px-3 py-2 text-xs outline-none transition-all"
               />
               <div className="flex items-center gap-2">
@@ -954,6 +954,13 @@ export default function Dashboard({
         >
           <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
           <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-black/10 rounded-full blur-2xl pointer-events-none"></div>
+          
+          {/* Decorative Icon */}
+          <img 
+            src="https://cdn-icons-png.flaticon.com/128/13446/13446735.png" 
+            alt="Decoration" 
+            className="absolute -bottom-8 -left-8 w-[240px] h-[240px] pointer-events-none z-0 opacity-90" 
+          />
           
           <div className="relative z-10 flex items-center justify-between mb-2">
             {isEditingAccount ? (
@@ -1074,27 +1081,27 @@ export default function Dashboard({
           )}
 
           {/* 3 Action Buttons */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-3 mt-1 relative z-20">
             <button 
               onClick={() => setActiveView('kebutuhan')}
-              className="bg-white/60 hover:bg-white/80 transition-colors backdrop-blur-xl px-2 py-3.5 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-row items-center justify-center gap-2 group"
+              className="bg-white/60 hover:bg-white/80 active:bg-black/[0.04] transition-all duration-300 backdrop-blur-xl p-3 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] active:shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] active:translate-y-[1px] flex flex-col items-center justify-center gap-1.5 group"
             >
-              <img src="https://cdn-icons-png.flaticon.com/128/2099/2099125.png" alt="Kebutuhan" className="w-5 h-5 object-contain" />
-              <span className="text-[12px] font-bold text-[#2D2D2A]">Kebutuhan</span>
+              <img src="https://cdn-icons-png.flaticon.com/128/2099/2099125.png" alt="Kebutuhan" className="w-[20px] h-[20px] object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+              <span className="text-[11px] tracking-wide text-[#2D2D2A]">Kebutuhan</span>
             </button>
             <button 
               onClick={() => setActiveView('jadwal')}
-              className="bg-white/60 hover:bg-white/80 transition-colors backdrop-blur-xl px-2 py-3.5 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-row items-center justify-center gap-2 group"
+              className="bg-white/60 hover:bg-white/80 active:bg-black/[0.04] transition-all duration-300 backdrop-blur-xl p-3 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] active:shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] active:translate-y-[1px] flex flex-col items-center justify-center gap-1.5 group"
             >
-              <img src="https://cdn-icons-png.flaticon.com/128/9292/9292116.png" alt="Jadwal" className="w-5 h-5 object-contain" />
-              <span className="text-[12px] font-bold text-[#2D2D2A]">Jadwal</span>
+              <img src="https://cdn-icons-png.flaticon.com/128/3597/3597050.png" alt="Jadwal" className="w-[20px] h-[20px] object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+              <span className="text-[11px] tracking-wide text-[#2D2D2A]">Jadwal</span>
             </button>
             <button 
               onClick={() => setActiveView('acara')}
-              className="bg-white/60 hover:bg-white/80 transition-colors backdrop-blur-xl px-2 py-3.5 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-row items-center justify-center gap-2 group"
+              className="bg-white/60 hover:bg-white/80 active:bg-black/[0.04] transition-all duration-300 backdrop-blur-xl p-3 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] active:shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] active:translate-y-[1px] flex flex-col items-center justify-center gap-1.5 group"
             >
-              <img src="https://cdn-icons-png.flaticon.com/128/3656/3656845.png" alt="Acara" className="w-5 h-5 object-contain" />
-              <span className="text-[12px] font-bold text-[#2D2D2A]">Acara</span>
+              <img src="https://cdn-icons-png.flaticon.com/128/11989/11989775.png" alt="Agenda" className="w-[20px] h-[20px] object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
+              <span className="text-[11px] tracking-wide text-[#2D2D2A]">Agenda</span>
             </button>
           </div>
         </div>

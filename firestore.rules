@@ -10,15 +10,11 @@ service cloud.firestore {
     }
     
     match /fanra/{document=**} {
-      // Siapa saja (keluarga/viewer) dapat membaca data (real-time sync)
-      allow read: if true;
+      // Hanya anggota yang login menggunakan akun Google (siapa saja) yang bisa melihat data (Viewer)
+      allow read: if request.auth != null;
       
       // HANYA Owner (Irfan) yang bisa menulis, mengubah, atau menghapus data
       allow write: if isOwner();
     }
   }
 }
-
-git add .
-git commit -m "update"
-git push

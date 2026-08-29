@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Family from './components/Family';
+import NotificationView from './components/NotificationView';
 import PinSetup from './components/PinSetup';
 import PinEntry from './components/PinEntry';
 import NotificationPermissionModal from './components/NotificationPermissionModal';
@@ -9,21 +10,13 @@ import PwaInstallModal from './components/PwaInstallModal';
 import { useStorage } from './hooks/useStorage';
 import { useFirebaseSync } from './hooks/useFirebaseSync';
 import { Transaction, FamilyMember, Todo, AppEvent } from './types';
+import { AnimatePresence } from 'motion/react';
 
-type Tab = 'dashboard' | 'transaksi' | 'keluarga';
+type Tab = 'dashboard' | 'transaksi' | 'keluarga' | 'notifikasi';
 
-const expressions = [
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Smiling%20Face%20with%20Smiling%20Eyes.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Sleeping%20Face.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Tired%20Face.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Smiling%20Face%20with%20Sunglasses.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Sneezing%20Face.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Loudly%20Crying%20Face.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Exploding%20Head.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Enraged%20Face.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Smiling%20Face%20with%20Hearts.png',
-  'https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Thinking%20Face.png'
-];
+import { Smile, Frown, Meh, Laugh, Annoyed, Heart } from 'lucide-react';
+
+const expressions = [Smile, Frown, Meh, Laugh, Annoyed, Heart];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
@@ -210,20 +203,32 @@ export default function App() {
         
         <div className="flex-1 px-4 py-8 space-y-2">
           {[
-            { id: 'dashboard', label: 'Beranda', icon: 'https://cdn-icons-png.flaticon.com/128/4999/4999606.png' },
-            { id: 'transaksi', label: 'Transaksi', icon: 'https://cdn-icons-png.flaticon.com/128/6145/6145523.png' },
-            { id: 'keluarga', label: 'Keluarga', icon: 'https://cdn-icons-png.flaticon.com/128/16133/16133885.png' },
+            { id: 'dashboard', label: 'Beranda', icon: 'https://cdn-icons-png.flaticon.com/128/15665/15665454.png' },
+            { id: 'transaksi', label: 'Transaksi', icon: 'https://cdn-icons-png.flaticon.com/128/483/483742.png' },
+            { id: 'keluarga', label: 'Keluarga', icon: 'https://cdn-icons-png.flaticon.com/128/33/33728.png' },
           ].map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id as Tab)}
               className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
                 activeTab === item.id 
-                  ? 'bg-[#4A6741] text-white shadow-[0_4px_12px_rgba(74,103,65,0.2)]' 
-                  : 'text-[#7A7A72] hover:bg-white/50 grayscale hover:grayscale-0'
+                  ? 'bg-black/[0.04] text-[#4A6741] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] translate-y-[1px]' 
+                  : 'text-[#7A7A72] hover:bg-black/5'
               }`}
             >
-              <img src={item.icon} className={`w-5 h-5 object-contain transition-all ${activeTab === item.id ? 'brightness-200' : 'opacity-70'}`} alt={item.label} />
+              <div 
+                className="w-5 h-5 bg-current"
+                style={{
+                  WebkitMaskImage: `url('${item.icon}')`,
+                  WebkitMaskSize: 'contain',
+                  WebkitMaskRepeat: 'no-repeat',
+                  WebkitMaskPosition: 'center',
+                  maskImage: `url('${item.icon}')`,
+                  maskSize: 'contain',
+                  maskRepeat: 'no-repeat',
+                  maskPosition: 'center'
+                }}
+              />
               {item.label}
             </button>
           ))}
@@ -258,31 +263,64 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative overflow-x-hidden">
+        {/* Latar Belakang Foto Atas (Hanya untuk Dashboard Main View) */}
+        {activeTab === 'dashboard' && !isDashboardSubView && (
+          <div 
+            className="absolute top-0 left-0 right-0 h-[340px] md:h-[380px] z-0 pointer-events-none"
+            style={{
+              WebkitMaskImage: 'radial-gradient(circle 20px at 0 100%, transparent 20px, black 21px), radial-gradient(circle 20px at 100% 100%, transparent 20px, black 21px), linear-gradient(black, black)',
+              WebkitMaskPosition: 'bottom left, bottom right, top left',
+              WebkitMaskSize: '50% 20px, 50% 20px, 100% calc(100% - 20px)',
+              WebkitMaskRepeat: 'no-repeat, no-repeat, no-repeat',
+              maskImage: 'radial-gradient(circle 20px at 0 100%, transparent 20px, black 21px), radial-gradient(circle 20px at 100% 100%, transparent 20px, black 21px), linear-gradient(black, black)',
+              maskPosition: 'bottom left, bottom right, top left',
+              maskSize: '50% 20px, 50% 20px, 100% calc(100% - 20px)',
+              maskRepeat: 'no-repeat, no-repeat, no-repeat',
+              backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22 opacity=%220.15%22/%3E%3C/svg%3E"), linear-gradient(to bottom right, #3A5333, #23331E)'
+            }}
+          >
+          </div>
+        )}
+
         {/* Header Khusus HP */}
-        <header className="md:hidden bg-white/50 backdrop-blur-xl border-b border-white/60 sticky top-0 z-10 px-6 py-3 flex justify-between items-center shadow-[0_4px_30px_rgba(0,0,0,0.02)]">
+        <header className="md:hidden sticky top-0 z-10 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-9 h-9 drop-shadow-sm" />
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
+              <h1 className={`text-xl font-bold tracking-tight transition-colors ${activeTab === 'dashboard' && !isDashboardSubView ? 'text-white drop-shadow-md' : 'text-[#2D2D2A] drop-shadow-none'}`}>FanraPay</h1>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setActiveTab('notifikasi')}
+              className="flex items-center justify-center hover:scale-105 transition-all"
+            >
+              <img 
+                src="https://cdn-icons-png.flaticon.com/128/8338/8338801.png" 
+                alt="Notification" 
+                className="w-7 h-7 object-contain transition-all" 
+                style={{ filter: activeTab === 'dashboard' && !isDashboardSubView ? 'brightness(0) invert(1)' : 'brightness(0) opacity(0.8)' }}
+              />
+            </button>
             <button 
               onClick={() => {
                 if (isAdmin && !previewMode) {
                   setExpressionIndex((prev) => (prev + 1) % expressions.length);
                 }
               }} 
-              className={`w-10 h-10 rounded-full border-2 border-white bg-white/60 flex items-center justify-center shadow-sm overflow-hidden p-1.5 transition-all ${isAdmin && !previewMode ? 'hover:scale-105 cursor-pointer' : 'cursor-default opacity-80'}`}
+              className={`w-7 h-7 flex items-center justify-center overflow-hidden transition-all ${isAdmin && !previewMode ? 'hover:scale-105 cursor-pointer' : 'cursor-default opacity-90'}`}
               title={isAdmin && !previewMode ? "Ubah status" : "Status"}
             >
-              <img src={expressions[expressionIndex]} alt="expression" className="w-full h-full object-contain drop-shadow-sm" />
+              {(() => {
+                const ExpressionIcon = expressions[expressionIndex];
+                return <ExpressionIcon className={`w-full h-full transition-colors ${activeTab === 'dashboard' && !isDashboardSubView ? 'text-white drop-shadow-md' : 'text-[#2D2D2A] drop-shadow-none'}`} strokeWidth={2.5} />;
+              })()}
             </button>
           </div>
         </header>
 
         {/* Konten Utama */}
-        <main className="flex-1 max-w-[1400px] mx-auto w-full p-4 sm:p-6 md:p-8 pb-28 md:pb-8">
+        <main className="flex-1 max-w-[1400px] mx-auto w-full p-4 sm:p-6 md:p-8 pb-28 md:pb-8 relative z-10">
           {activeTab === 'dashboard' && (
             <Dashboard 
               transactions={transactions} 
@@ -330,33 +368,80 @@ export default function App() {
               currentUser={currentUser}
             />
           )}
+
+          <AnimatePresence>
+            {activeTab === 'notifikasi' && (
+              <NotificationView 
+                transactions={transactions}
+                events={events}
+                todos={todos}
+                onBack={() => setActiveTab('dashboard')}
+              />
+            )}
+          </AnimatePresence>
         </main>
 
         {/* Navbar Khusus HP */}
-        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-xl border-t border-white/60 pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.04)] z-20 transition-transform duration-300 ${isDashboardSubView && activeTab === 'dashboard' ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
-          <div className="max-w-md mx-auto flex justify-around p-3 items-center">
+        <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-xl border-t border-white/60 rounded-t-[24px] pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.04)] z-20 transition-transform duration-300 ${activeTab === 'notifikasi' || (isDashboardSubView && activeTab === 'dashboard') ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
+          <div className="max-w-md mx-auto flex justify-around px-3 py-1.5 items-center">
             <button 
               onClick={() => setActiveTab('dashboard')}
-              className={`flex flex-col items-center gap-1.5 p-2 w-20 transition-colors ${activeTab === 'dashboard' ? 'text-[#4A6741]' : 'opacity-50 hover:opacity-100 grayscale hover:grayscale-0'}`}
+              className={`flex flex-col items-center gap-1 p-1.5 w-[64px] rounded-[18px] transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-black/[0.04] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] text-[#4A6741] translate-y-[1px]' : 'text-[#7A7A72] hover:bg-black/5 hover:text-[#4A6741]'}`}
             >
-              <img src="https://cdn-icons-png.flaticon.com/128/4999/4999606.png" className="w-6 h-6 object-contain" alt="Beranda" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-current">Beranda</span>
+              <div 
+                className="w-[20px] h-[20px] bg-current"
+                style={{
+                  WebkitMaskImage: `url('https://cdn-icons-png.flaticon.com/128/15665/15665454.png')`,
+                  WebkitMaskSize: 'contain',
+                  WebkitMaskRepeat: 'no-repeat',
+                  WebkitMaskPosition: 'center',
+                  maskImage: `url('https://cdn-icons-png.flaticon.com/128/15665/15665454.png')`,
+                  maskSize: 'contain',
+                  maskRepeat: 'no-repeat',
+                  maskPosition: 'center'
+                }}
+              />
+              <span className="text-[10px] tracking-wide text-current">Beranda</span>
             </button>
             
             <button 
               onClick={() => setActiveTab('transaksi')}
-              className={`flex flex-col items-center gap-1.5 p-2 w-20 transition-colors ${activeTab === 'transaksi' ? 'text-[#4A6741]' : 'opacity-50 hover:opacity-100 grayscale hover:grayscale-0'}`}
+              className={`flex flex-col items-center gap-1 p-1.5 w-[64px] rounded-[18px] transition-all duration-300 ${activeTab === 'transaksi' ? 'bg-black/[0.04] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] text-[#4A6741] translate-y-[1px]' : 'text-[#7A7A72] hover:bg-black/5 hover:text-[#4A6741]'}`}
             >
-              <img src="https://cdn-icons-png.flaticon.com/128/6145/6145523.png" className="w-6 h-6 object-contain" alt="Transaksi" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-current">Transaksi</span>
+              <div 
+                className="w-[20px] h-[20px] bg-current"
+                style={{
+                  WebkitMaskImage: `url('https://cdn-icons-png.flaticon.com/128/483/483742.png')`,
+                  WebkitMaskSize: 'contain',
+                  WebkitMaskRepeat: 'no-repeat',
+                  WebkitMaskPosition: 'center',
+                  maskImage: `url('https://cdn-icons-png.flaticon.com/128/483/483742.png')`,
+                  maskSize: 'contain',
+                  maskRepeat: 'no-repeat',
+                  maskPosition: 'center'
+                }}
+              />
+              <span className="text-[10px] tracking-wide text-current">Transaksi</span>
             </button>
 
             <button 
               onClick={() => setActiveTab('keluarga')}
-              className={`flex flex-col items-center gap-1.5 p-2 w-20 transition-colors ${activeTab === 'keluarga' ? 'text-[#4A6741]' : 'opacity-50 hover:opacity-100 grayscale hover:grayscale-0'}`}
+              className={`flex flex-col items-center gap-1 p-1.5 w-[64px] rounded-[18px] transition-all duration-300 ${activeTab === 'keluarga' ? 'bg-black/[0.04] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] text-[#4A6741] translate-y-[1px]' : 'text-[#7A7A72] hover:bg-black/5 hover:text-[#4A6741]'}`}
             >
-              <img src="https://cdn-icons-png.flaticon.com/128/16133/16133885.png" className="w-6 h-6 object-contain" alt="Keluarga" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-current">Keluarga</span>
+              <div 
+                className="w-[20px] h-[20px] bg-current"
+                style={{
+                  WebkitMaskImage: `url('https://cdn-icons-png.flaticon.com/128/33/33728.png')`,
+                  WebkitMaskSize: 'contain',
+                  WebkitMaskRepeat: 'no-repeat',
+                  WebkitMaskPosition: 'center',
+                  maskImage: `url('https://cdn-icons-png.flaticon.com/128/33/33728.png')`,
+                  maskSize: 'contain',
+                  maskRepeat: 'no-repeat',
+                  maskPosition: 'center'
+                }}
+              />
+              <span className="text-[10px] tracking-wide text-current">Keluarga</span>
             </button>
           </div>
         </nav>
