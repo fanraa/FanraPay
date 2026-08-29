@@ -98,7 +98,7 @@ export default function Dashboard({
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
   
-  const [localAccountNumber, setLocalAccountNumber] = useStorage('fanra_account_number', '');
+  const [localAccountNumber, setLocalAccountNumber] = useState('');
   const accountNumber = propAccountNumber !== undefined ? propAccountNumber : localAccountNumber;
   const setAccountNumber = propSetAccountNumber || setLocalAccountNumber;
 
@@ -219,7 +219,7 @@ export default function Dashboard({
   };
   
   const [currentSemester, setCurrentSemester] = useState(3);
-  const [localTodos, setLocalTodos] = useStorage<Todo[]>('fanra_v2_todos', []);
+  const [localTodos, setLocalTodos] = useState<Todo[]>([]);
   const todos = propTodos || localTodos;
   const setTodos = propSetTodos || setLocalTodos;
 
@@ -339,7 +339,7 @@ export default function Dashboard({
   };
 
   // State Acara
-  const [localEvents, setLocalEvents] = useStorage<AppEvent[]>('fanra_v2_events', []);
+  const [localEvents, setLocalEvents] = useState<AppEvent[]>([]);
   const events = propEvents || localEvents;
   const setEvents = propSetEvents || setLocalEvents;
   const [newEventTitle, setNewEventTitle] = useState('');

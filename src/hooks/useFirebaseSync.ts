@@ -53,7 +53,8 @@ export function useFirebaseSync(
   privateMode: any, setPrivateMode: any,
   accountNumber?: any, setAccountNumber?: any,
   todos?: any, setTodos?: any,
-  events?: any, setEvents?: any
+  events?: any, setEvents?: any,
+  expressionIndex?: any, setExpressionIndex?: any
 ) {
   const [isSyncing, setIsSyncing] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -95,7 +96,8 @@ export function useFirebaseSync(
           privateMode: data.privateMode !== undefined ? data.privateMode : false,
           accountNumber: data.accountNumber || '',
           todos: data.todos || [],
-          events: data.events || []
+          events: data.events || [],
+          status: data.status !== undefined ? data.status : 0
         });
 
         if (data.transactions) {
@@ -126,6 +128,7 @@ export function useFirebaseSync(
         if (data.accountNumber !== undefined && setAccountNumber) setAccountNumber(data.accountNumber);
         if (data.todos !== undefined && setTodos) setTodos(data.todos);
         if (data.events !== undefined && setEvents) setEvents(data.events);
+        if (data.status !== undefined && setExpressionIndex) setExpressionIndex(data.status);
       }
     }, (err) => {
       console.warn("Firestore snapshot listener notice:", err);
@@ -150,7 +153,8 @@ export function useFirebaseSync(
       privateMode: privateMode !== undefined ? privateMode : false,
       accountNumber: accountNumber || '',
       todos: todos || [],
-      events: events || []
+      events: events || [],
+      status: expressionIndex !== undefined ? expressionIndex : 0
     });
 
     // Jika data lokal sama dengan data yang terakhir diunduh/diupload, jangan upload ulang
@@ -170,6 +174,7 @@ export function useFirebaseSync(
           accountNumber: accountNumber || '',
           todos: todos || [],
           events: events || [],
+          status: expressionIndex !== undefined ? expressionIndex : 0,
           updatedAt: new Date().toISOString()
         });
 
@@ -184,7 +189,8 @@ export function useFirebaseSync(
           privateMode: dataToUpload.privateMode,
           accountNumber: dataToUpload.accountNumber,
           todos: dataToUpload.todos,
-          events: dataToUpload.events
+          events: dataToUpload.events,
+          status: dataToUpload.status
         });
       } catch (err) {
         console.error("Firebase sync error:", err);
@@ -192,9 +198,9 @@ export function useFirebaseSync(
     };
 
     // Debounce slightly
-    const timeout = setTimeout(uploadData, 1000);
+    const timeout = setTimeout(uploadData, 300);
     return () => clearTimeout(timeout);
-  }, [transactions, budget, showHistory, showNotifications, privateMode, accountNumber, todos, events]);
+  }, [transactions, budget, showHistory, showNotifications, privateMode, accountNumber, todos, events, expressionIndex]);
 
   const forceRefresh = () => {
     setIsSyncing(true);

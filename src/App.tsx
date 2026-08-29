@@ -21,18 +21,18 @@ const expressions = [Smile, Frown, Meh, Laugh, Annoyed, Heart];
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isDashboardSubView, setIsDashboardSubView] = useState(false);
-  const [expressionIndex, setExpressionIndex] = useStorage('fanra_expression', 0);
+  const [expressionIndex, setExpressionIndex] = useState<number>(0);
   
-  const [transactions, setTransactions] = useStorage<Transaction[]>('fanra_v2_transactions', []);
-  const [budget, setBudget] = useStorage<number>('fanra_v2_budget', 5000000);
-  const [accountNumber, setAccountNumber] = useStorage<string>('fanra_v2_account_number', '');
-  const [todos, setTodos] = useStorage<Todo[]>('fanra_v2_todos', []);
-  const [events, setEvents] = useStorage<AppEvent[]>('fanra_v2_events', []);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budget, setBudget] = useState<number>(5000000);
+  const [accountNumber, setAccountNumber] = useState<string>('');
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [events, setEvents] = useState<AppEvent[]>([]);
   
   // Pengaturan Privasi & Viewer
-  const [showHistory, setShowHistory] = useStorage('fanra_setting_history', true);
-  const [showNotifications, setShowNotifications] = useStorage('fanra_setting_notif', false);
-  const [privateMode, setPrivateMode] = useStorage('fanra_setting_private', false);
+  const [showHistory, setShowHistory] = useState<boolean>(true);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [privateMode, setPrivateMode] = useState<boolean>(false);
   const [previewMode, setPreviewMode] = useStorage('fanra_preview_mode', false);
   const [pinCode, setPinCode] = useStorage<string | null>('fanra_pin_code', null);
   const [isPinEnabled, setIsPinEnabled] = useStorage<boolean>('fanra_pin_enabled', false);
@@ -52,7 +52,8 @@ export default function App() {
     privateMode, setPrivateMode,
     accountNumber, setAccountNumber,
     todos, setTodos,
-    events, setEvents
+    events, setEvents,
+    expressionIndex, setExpressionIndex
   );
   
   // Viewer mode is active if user is NOT Admin, OR if Admin explicitly enabled Preview Mode
