@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fungsi untuk mengecek apakah user yang login adalah pemilik (Owner)
+    function isOwner() {
+      return request.auth != null && 
+             (request.auth.token.email == 'irfanrizkiaditri@gmail.com' || 
+              request.auth.token.email == 'irfanrizkiaditri02@gmail.com');
+    }
+    
+    match /fanra/{document=**} {
+      // Siapa saja (keluarga/viewer) dapat membaca data (real-time sync)
+      allow read: if true;
+      
+      // HANYA Owner (Irfan) yang bisa menulis, mengubah, atau menghapus data
+      allow write: if isOwner();
+    }
+  }
+}

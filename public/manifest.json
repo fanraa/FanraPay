@@ -1,0 +1,22 @@
+{
+  "name": "Fanra - Finance Tracker",
+  "short_name": "Fanra",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8F7F4",
+  "theme_color": "#4A6741",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/128/10473/10473393.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10473/10473393.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
