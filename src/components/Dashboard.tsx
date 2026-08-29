@@ -421,13 +421,18 @@ export default function Dashboard({
   const handleAddEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventTitle.trim() || !selectedDate || previewMode) return;
-    setEvents([...events, { 
-      id: Date.now().toString(), 
-      title: newEventTitle.trim(), 
-      date: selectedDate, 
-      endDate: newEventEndDate ? newEventEndDate : undefined,
-      location: newEventLocation.trim() 
-    }]);
+    const newEvent: AppEvent = {
+      id: Date.now().toString(),
+      title: newEventTitle.trim(),
+      date: selectedDate,
+      location: newEventLocation.trim()
+    };
+
+    if (newEventEndDate) {
+      newEvent.endDate = newEventEndDate;
+    }
+
+    setEvents([...events, newEvent]);
     setNewEventTitle('');
     setNewEventLocation('');
     setNewEventEndDate('');
@@ -949,18 +954,19 @@ export default function Dashboard({
       <div className="flex flex-col lg:grid lg:grid-cols-12 gap-5 lg:gap-6">
         <div className="lg:col-span-5 space-y-5">
         <div 
-          className="bg-gradient-to-br from-[#4A6741] to-[#2D2D2A] p-6 lg:p-7 rounded-[32px] border border-white/10 shadow-lg relative overflow-hidden"
-          style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22 opacity=%220.08%22/%3E%3C/svg%3E"), linear-gradient(to bottom right, #4A6741, #2D2D2A)' }}
+          className="bg-[#2D2D2A] p-6 lg:p-7 rounded-[32px] border border-white/10 shadow-lg relative overflow-hidden"
         >
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-          <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-black/10 rounded-full blur-2xl pointer-events-none"></div>
-          
-          {/* Decorative Icon */}
+          {/* Background Foto */}
           <img 
-            src="https://cdn-icons-png.flaticon.com/128/13446/13446735.png" 
-            alt="Decoration" 
-            className="absolute -bottom-8 -left-8 w-[240px] h-[240px] pointer-events-none z-0 opacity-90" 
+            src="https://res.cloudinary.com/dew39kqhy/image/upload/v1788012838/20260829_211122_0000_v2e1uo.png"
+            alt="Card Background"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none z-0 opacity-90"
           />
+          {/* Overlay gelap agar teks putih tetap terbaca */}
+          <div className="absolute inset-0 bg-black/40 pointer-events-none z-0"></div>
+
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none z-0"></div>
+          <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-black/20 rounded-full blur-2xl pointer-events-none z-0"></div>
           
           <div className="relative z-10 flex items-center justify-between mb-2">
             {isEditingAccount ? (

@@ -3,6 +3,22 @@ import { db, auth, checkRedirectLogin } from '../lib/firebase';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 
+function removeUndefined<T>(obj: T): T {
+  if (Array.isArray(obj)) {
+    return obj.map(removeUndefined) as T;
+  }
+
+  if (obj && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj as Record<string, unknown>)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => [key, removeUndefined(value)])
+    ) as T;
+  }
+
+  return obj;
+}
+
 function sendSystemNotification(title: string, body: string) {
   if (typeof window === 'undefined' || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
@@ -105,6 +121,7 @@ export function useFirebaseSync(
 
         if (data.budget !== undefined) setBudget(data.budget);
         if (data.showHistory !== undefined) setShowHistory(data.showHistory);
+        if (data.showNotifications !== undefined && setShowNotifications) setShowNotifications(data.showNotifications);
         if (data.privateMode !== undefined) setPrivateMode(data.privateMode);
         if (data.accountNumber !== undefined && setAccountNumber) setAccountNumber(data.accountNumber);
         if (data.todos !== undefined && setTodos) setTodos(data.todos);
@@ -144,7 +161,7 @@ export function useFirebaseSync(
     const uploadData = async () => {
       try {
         const docRef = doc(db, 'fanra', 'irfan_family_data');
-        await setDoc(docRef, {
+        const dataToUpload = removeUndefined({
           transactions: transactions || [],
           budget: budget !== undefined ? budget : 5000000,
           showHistory: showHistory !== undefined ? showHistory : true,
@@ -155,8 +172,20 @@ export function useFirebaseSync(
           events: events || [],
           updatedAt: new Date().toISOString()
         });
+
+        await setDoc(docRef, dataToUpload);
+        
         // Update referensi terakhir agar kita tahu data ini sudah tersinkronisasi
-        lastDownloadedRef.current = currentDataString;
+        lastDownloadedRef.current = JSON.stringify({
+          transactions: dataToUpload.transactions,
+          budget: dataToUpload.budget,
+          showHistory: dataToUpload.showHistory,
+          showNotifications: dataToUpload.showNotifications,
+          privateMode: dataToUpload.privateMode,
+          accountNumber: dataToUpload.accountNumber,
+          todos: dataToUpload.todos,
+          events: dataToUpload.events
+        });
       } catch (err) {
         console.error("Firebase sync error:", err);
       }

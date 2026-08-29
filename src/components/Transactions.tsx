@@ -23,7 +23,10 @@ export default function Transactions({ transactions, onAddTransaction, onDeleteT
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
-  const [time, setTime] = useState(() => new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }));
+  const [time, setTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  });
   const [photo, setPhoto] = useState<string | undefined>();
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [viewingPhoto, setViewingPhoto] = useState(false);
@@ -119,16 +122,21 @@ export default function Transactions({ transactions, onAddTransaction, onDeleteT
     e.preventDefault();
     if (!amount || !category || !date || isInsufficientBalance) return;
 
-    onAddTransaction({
+    const transaction: Transaction = {
       id: Date.now().toString(),
       type,
       amount: Number(amount),
       category,
       note,
       date,
-      time,
-      photo
-    });
+      time
+    };
+
+    if (photo) {
+      transaction.photo = photo;
+    }
+
+    onAddTransaction(transaction);
 
     setAmount('');
     setCategory('');

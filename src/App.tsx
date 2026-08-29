@@ -192,6 +192,7 @@ export default function App() {
       )}
 
       <div className={`min-h-screen bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3] text-[#2D2D2A] font-sans selection:bg-[#4A6741]/20 flex ${(!isAuthenticated && isPinEnabled && isAdmin && !previewMode && !isSettingPin) ? 'hidden' : ''}`}>
+        
       {/* Sidebar untuk Desktop */}
       <aside className="hidden md:flex flex-col w-64 fixed inset-y-0 left-0 bg-white/60 backdrop-blur-2xl border-r border-white/80 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-30">
         <div className="p-6 border-b border-white/80 flex items-center gap-3">
@@ -262,7 +263,7 @@ export default function App() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative overflow-x-hidden">
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen relative z-10 overflow-x-hidden">
         {/* Latar Belakang Foto Atas (Hanya untuk Dashboard Main View) */}
         {activeTab === 'dashboard' && !isDashboardSubView && (
           <div 
@@ -281,7 +282,7 @@ export default function App() {
           >
           </div>
         )}
-
+        
         {/* Header Khusus HP */}
         <header className="md:hidden sticky top-0 z-10 px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -380,6 +381,16 @@ export default function App() {
             )}
           </AnimatePresence>
         </main>
+
+        {/* Latar Belakang Foto Bawah (Beranda, Transaksi, Keluarga) - Absolute di dasar konten */}
+        {['dashboard', 'transaksi', 'keluarga'].includes(activeTab) && !isDashboardSubView && (
+          <img 
+            src="https://res.cloudinary.com/dew39kqhy/image/upload/v1788013698/20260829_212754_0000_iveyrl.png" 
+            alt="Page Background Bottom" 
+            className="absolute bottom-0 left-0 right-0 w-full object-cover object-bottom z-0 pointer-events-none opacity-80" 
+            style={{ height: 'max(40vh, 300px)' }}
+          />
+        )}
 
         {/* Navbar Khusus HP */}
         <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-xl border-t border-white/60 rounded-t-[24px] pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.04)] z-20 transition-transform duration-300 ${activeTab === 'notifikasi' || (isDashboardSubView && activeTab === 'dashboard') ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
