@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Dashboard from './components/Dashboard';
 import Transactions from './components/Transactions';
 import Family from './components/Family';
@@ -7,6 +7,7 @@ import PinSetup from './components/PinSetup';
 import PinEntry from './components/PinEntry';
 import NotificationPermissionModal from './components/NotificationPermissionModal';
 import PwaInstallModal from './components/PwaInstallModal';
+import FloatingActionButton from './components/FloatingActionButton';
 import { useStorage } from './hooks/useStorage';
 import { useFirebaseSync } from './hooks/useFirebaseSync';
 import { Transaction, FamilyMember, Todo, AppEvent } from './types';
@@ -29,6 +30,39 @@ export default function App() {
   const [accountNumber, setAccountNumber] = useState<string>('');
   const [todos, setTodos] = useState<Todo[]>([]);
   const [events, setEvents] = useState<AppEvent[]>([]);
+  
+  const scrollPositions = useRef<Record<string, number>>({});
+  
+  const handleTabChange = (newTab: Tab) => {
+    if (activeTab === newTab) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setActiveTab(newTab);
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'instant'
+      });
+    }, 10);
+  };
+
+  useEffect(() => {
+    let scrollTimeout: any;
+    const handleScroll = () => {
+      document.body.classList.add('is-scrolling');
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        document.body.classList.remove('is-scrolling');
+      }, 150); // Hides tooltip while scrolling, restores shortly after
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      clearTimeout(scrollTimeout);
+    };
+  }, []);
+
   
   // Pengaturan Privasi & Viewer
   const [showHistory, setShowHistory] = useState<boolean>(true);
@@ -56,7 +90,79 @@ export default function App() {
     events, setEvents,
     expressionIndex, setExpressionIndex
   );
+
+  const [readNotifs, setReadNotifs] = useStorage<string[]>('fanra_read_notifs', []);
+
+  const notifs = React.useMemo(() => {
+    const parseDate = (dateStr: string, timeStr?: string) => {
+      if (!dateStr) return new Date(0);
+      try {
+        const [year, month, day] = dateStr.split('-');
+        if (year && month && day) {
+          const date = new Date(Number(year), Number(month) - 1, Number(day));
+          if (timeStr) {
+            const [hours, minutes] = timeStr.split(':');
+            if (hours && minutes) {
+              date.setHours(Number(hours), Number(minutes), 0, 0);
+            }
+          }
+          return date;
+        }
+        return new Date(dateStr);
+      } catch (e) {
+        return new Date();
+      }
+    };
+
+    const allNotifs = [
+      ...transactions.map(t => ({
+        id: `tx-${t.id}`,
+        type: 'transaksi',
+        title: `Transaksi ${t.type === 'pemasukan' ? 'Masuk' : 'Keluar'}`,
+        desc: `Rp ${t.amount.toLocaleString('id-ID')} - ${t.category}`,
+        time: t.time ? `${t.date} ${t.time}` : t.date,
+        timestamp: parseDate(t.date, t.time).getTime()
+      })),
+      ...events.map(e => ({
+        id: `ev-${e.id}`,
+        type: 'agenda',
+        title: `Agenda: ${e.title}`,
+        desc: e.location || 'Tidak ada lokasi',
+        time: e.date,
+        timestamp: parseDate(e.date).getTime()
+      })),
+      ...todos.map(t => ({
+        id: `td-${t.id}`,
+        type: 'kebutuhan',
+        title: `Kebutuhan: ${t.text}`,
+        desc: t.done ? 'Selesai' : 'Belum Selesai',
+        time: t.createdAt ? new Date(t.createdAt).toLocaleDateString('id-ID') : 'Baru',
+        timestamp: t.createdAt ? new Date(t.createdAt).getTime() : Date.now()
+      }))
+    ];
+
+    return allNotifs
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 30);
+  }, [transactions, events, todos]);
+
+  const unreadCount = notifs.filter(n => !readNotifs.includes(n.id)).length;
+
+  const handleMarkAllAsRead = () => {
+    const allIds = [
+      ...transactions.map(t => `tx-${t.id}`),
+      ...events.map(e => `ev-${e.id}`),
+      ...todos.map(t => `td-${t.id}`)
+    ];
+    setReadNotifs(allIds);
+  };
   
+  const handleMarkAsRead = (id: string) => {
+    if (!readNotifs.includes(id)) {
+      setReadNotifs([...readNotifs, id]);
+    }
+  };
+
   // Viewer mode is active if user is NOT Admin, OR if Admin explicitly enabled Preview Mode
   const isViewer = !isAdmin || previewMode;
 
@@ -144,9 +250,9 @@ export default function App() {
 
       if (isNotMain) {
         // Jika sedang di menu lain, kembalikan ke beranda
-        if (currentTab === 'notifikasi') setActiveTab('dashboard');
+        if (currentTab === 'notifikasi') handleTabChange('dashboard');
         else if (isSubView) setIsDashboardSubView(false);
-        else if (currentTab !== 'dashboard') setActiveTab('dashboard');
+        else if (currentTab !== 'dashboard') handleTabChange('dashboard');
 
         // Pasang kembali perangkap back (agar tidak keluar setelah kembali ke beranda)
         window.history.pushState({ internal: true }, '', window.location.href);
@@ -204,39 +310,16 @@ export default function App() {
   return (
     <>
       {isLoading && (
-        <div className={`fixed inset-0 z-[999] flex flex-col items-center justify-center transition-opacity duration-500 ease-in-out ${isFadingOut ? 'opacity-0' : 'opacity-100'} ${isFirstLoadRef.current ? 'bg-[#F8F7F4]' : 'bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3]'}`}>
-          {isFirstLoadRef.current ? (
-            <>
-              {/* Layar Loading Khusus Mobile Awal */}
-              <div className="md:hidden w-full h-full flex items-center justify-center">
-                <img src="https://res.cloudinary.com/dew39kqhy/image/upload/v1788022638/Kelola._Catat._Tumbuh._20260829_235544_0000_cwxkj8.png" alt="FanraPay Loading" className="w-full h-full object-cover" />
-              </div>
-              {/* Layar Loading Desktop Awal */}
-              <div className="hidden md:flex flex-1 flex-col items-center justify-center w-full h-full">
-                <div className="flex-1 flex flex-col items-center justify-center pt-16">
-                  <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-16 h-16 drop-shadow-md animate-pulse mb-3" />
-                  <h1 className="text-2xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
-                </div>
-                <div className="pb-8">
-                  <p className="text-[10px] md:text-xs text-[#7A7A72]/60 font-medium uppercase tracking-widest">
-                    by Irfan Rizki Aditri
-                  </p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex-1 flex flex-col items-center justify-center pt-16">
-                <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-16 h-16 drop-shadow-md animate-pulse mb-3" />
-                <h1 className="text-2xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
-              </div>
-              <div className="pb-8">
-                <p className="text-[10px] md:text-xs text-[#7A7A72]/60 font-medium uppercase tracking-widest">
-                  by Irfan Rizki Aditri
-                </p>
-              </div>
-            </>
-          )}
+        <div className={`fixed inset-0 z-[999] flex flex-col items-center justify-between bg-fixed bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3] transition-opacity duration-500 ease-in-out ${isFadingOut ? 'opacity-0' : 'opacity-100'}`}>
+          <div className="flex-1 flex flex-col items-center justify-center pt-16">
+            <img src="/icons/icon-192.png" alt="FanraPay Logo" className="w-16 h-16 drop-shadow-md animate-pulse mb-3" />
+            <h1 className="text-2xl font-bold tracking-tight text-[#2D2D2A]">FanraPay</h1>
+          </div>
+          <div className="pb-8">
+            <p className="text-[10px] md:text-xs text-[#7A7A72]/60 font-medium uppercase tracking-widest">
+              by Irfan Rizki Aditri
+            </p>
+          </div>
         </div>
       )}
 
@@ -290,7 +373,7 @@ export default function App() {
         </div>
       )}
 
-      <div className={`min-h-screen bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3] text-[#2D2D2A] font-sans selection:bg-[#4A6741]/20 flex ${(!isAuthenticated && isPinEnabled && isAdmin && !previewMode && !isSettingPin) ? 'hidden' : ''}`}>
+      <div className={`min-h-screen bg-fixed bg-gradient-to-br from-[#E2E1DC] via-[#F8F7F4] to-[#D9E0D3] text-[#2D2D2A] font-sans selection:bg-[#4A6741]/20 flex ${(!isAuthenticated && isPinEnabled && isAdmin && !previewMode && !isSettingPin) ? 'hidden' : ''}`}>
         
       {/* Sidebar untuk Desktop */}
       <aside className="hidden md:flex flex-col w-64 fixed inset-y-0 left-0 bg-white/60 backdrop-blur-2xl border-r border-white/80 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-30">
@@ -306,30 +389,36 @@ export default function App() {
             { id: 'dashboard', label: 'Beranda', icon: 'https://cdn-icons-png.flaticon.com/128/15665/15665454.png' },
             { id: 'transaksi', label: 'Transaksi', icon: 'https://cdn-icons-png.flaticon.com/128/483/483742.png' },
             { id: 'keluarga', label: 'Keluarga', icon: 'https://cdn-icons-png.flaticon.com/128/33/33728.png' },
+            { id: 'notifikasi', label: 'Notifikasi', icon: 'https://cdn-icons-png.flaticon.com/128/3119/3119338.png', badge: unreadCount > 0 },
           ].map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id as Tab)}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
+              onClick={() => handleTabChange(item.id as Tab)}
+              className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all font-bold text-sm ${
                 activeTab === item.id 
                   ? 'bg-black/[0.04] text-[#4A6741] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] translate-y-[1px]' 
                   : 'text-[#7A7A72] hover:bg-black/5'
               }`}
             >
-              <div 
-                className="w-5 h-5 bg-current"
-                style={{
-                  WebkitMaskImage: `url('${item.icon}')`,
-                  WebkitMaskSize: 'contain',
-                  WebkitMaskRepeat: 'no-repeat',
-                  WebkitMaskPosition: 'center',
-                  maskImage: `url('${item.icon}')`,
-                  maskSize: 'contain',
-                  maskRepeat: 'no-repeat',
-                  maskPosition: 'center'
-                }}
-              />
-              {item.label}
+              <div className="flex items-center gap-3">
+                <div 
+                  className="w-5 h-5 bg-current"
+                  style={{
+                    WebkitMaskImage: `url('${item.icon}')`,
+                    WebkitMaskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    maskImage: `url('${item.icon}')`,
+                    maskSize: 'contain',
+                    maskRepeat: 'no-repeat',
+                    maskPosition: 'center'
+                  }}
+                />
+                {item.label}
+              </div>
+              {item.badge && (
+                <span className="w-2 h-2 bg-[#E63946] rounded-full"></span>
+              )}
             </button>
           ))}
         </div>
@@ -346,7 +435,10 @@ export default function App() {
                 className={`w-10 h-10 rounded-full border-2 border-white bg-white/60 flex items-center justify-center shadow-sm overflow-hidden p-1.5 transition-all shrink-0 ${isAdmin && !previewMode ? (isOnline ? 'hover:scale-105 cursor-pointer' : 'cursor-not-allowed opacity-50 grayscale') : 'cursor-default opacity-80'}`}
                 title={isAdmin && !previewMode ? (isOnline ? 'Ubah status ekspresi' : 'Offline - tidak dapat diubah') : 'Status'}
               >
-                <img src={expressions[expressionIndex]} alt="expression" className="w-full h-full object-contain drop-shadow-sm" />
+                {(() => {
+                  const ExpressionIcon = expressions[expressionIndex];
+                  return <ExpressionIcon className="w-full h-full text-[#4A6741] drop-shadow-sm" strokeWidth={2.5} />;
+                })()}
               </button>
               <div className="flex flex-col truncate">
                 <span className="text-[12px] font-bold text-[#2D2D2A] truncate">
@@ -387,7 +479,7 @@ export default function App() {
           <img 
             src="https://res.cloudinary.com/dew39kqhy/image/upload/v1788017121/20260829_222451_0000_xdtcn4.png"
             alt="Top Overlay"
-            className="absolute top-0 left-0 right-0 w-full h-[340px] md:h-[380px] object-cover object-top z-[15] pointer-events-none"
+            className="absolute top-0 left-0 right-0 w-full h-[340px] md:h-[380px] object-cover object-top z-[15] pointer-events-none md:hidden"
           />
         )}
         
@@ -401,8 +493,8 @@ export default function App() {
           </div>
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => setActiveTab('notifikasi')}
-              className="flex items-center justify-center hover:scale-105 transition-all"
+              onClick={() => handleTabChange('notifikasi')}
+              className="flex items-center justify-center hover:scale-105 transition-all relative"
             >
               <img 
                 src="https://cdn-icons-png.flaticon.com/128/8338/8338801.png" 
@@ -410,6 +502,9 @@ export default function App() {
                 className="w-7 h-7 object-contain transition-all" 
                 style={{ filter: activeTab === 'dashboard' && !isDashboardSubView ? 'brightness(0) invert(1)' : 'brightness(0) opacity(0.8)' }}
               />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 w-2 h-2 bg-[#E63946] rounded-full border border-white"></span>
+              )}
             </button>
             <button 
               onClick={() => {
@@ -487,7 +582,7 @@ export default function App() {
           <img 
             src="https://res.cloudinary.com/dew39kqhy/image/upload/v1788013698/20260829_212754_0000_iveyrl.png" 
             alt="Page Background Bottom" 
-            className="absolute bottom-0 left-0 right-0 w-full object-cover object-bottom z-0 pointer-events-none opacity-80" 
+            className="absolute bottom-0 left-0 right-0 w-full object-cover object-bottom z-0 pointer-events-none opacity-80 md:hidden" 
             style={{ height: 'max(40vh, 300px)' }}
           />
         )}
@@ -496,7 +591,7 @@ export default function App() {
         <nav className={`md:hidden fixed bottom-0 left-0 right-0 bg-white/70 backdrop-blur-xl border-t border-white/60 rounded-t-[24px] pb-safe shadow-[0_-8px_30px_rgba(0,0,0,0.04)] z-20 transition-transform duration-300 ${activeTab === 'notifikasi' || (isDashboardSubView && activeTab === 'dashboard') ? 'translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
           <div className="max-w-md mx-auto flex justify-around px-3 py-1.5 items-center">
             <button 
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => handleTabChange('dashboard')}
               className={`flex flex-col items-center gap-1 p-1.5 w-[64px] rounded-[18px] transition-all duration-300 ${activeTab === 'dashboard' ? 'bg-black/[0.04] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] text-[#4A6741] translate-y-[1px]' : 'text-[#7A7A72] hover:bg-black/5 hover:text-[#4A6741]'}`}
             >
               <div 
@@ -516,7 +611,7 @@ export default function App() {
             </button>
             
             <button 
-              onClick={() => setActiveTab('transaksi')}
+              onClick={() => handleTabChange('transaksi')}
               className={`flex flex-col items-center gap-1 p-1.5 w-[64px] rounded-[18px] transition-all duration-300 ${activeTab === 'transaksi' ? 'bg-black/[0.04] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] text-[#4A6741] translate-y-[1px]' : 'text-[#7A7A72] hover:bg-black/5 hover:text-[#4A6741]'}`}
             >
               <div 
@@ -536,7 +631,7 @@ export default function App() {
             </button>
 
             <button 
-              onClick={() => setActiveTab('keluarga')}
+              onClick={() => handleTabChange('keluarga')}
               className={`flex flex-col items-center gap-1 p-1.5 w-[64px] rounded-[18px] transition-all duration-300 ${activeTab === 'keluarga' ? 'bg-black/[0.04] shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] text-[#4A6741] translate-y-[1px]' : 'text-[#7A7A72] hover:bg-black/5 hover:text-[#4A6741]'}`}
             >
               <div 
@@ -561,13 +656,20 @@ export default function App() {
         <AnimatePresence>
           {activeTab === 'notifikasi' && (
             <NotificationView 
-              transactions={transactions}
-              events={events}
-              todos={todos}
-              onBack={() => setActiveTab('dashboard')}
+              notifs={notifs}
+              readNotifs={readNotifs}
+              onMarkAsRead={handleMarkAsRead}
+              onMarkAllAsRead={handleMarkAllAsRead}
+              onBack={() => handleTabChange('dashboard')}
             />
           )}
         </AnimatePresence>
+
+        <FloatingActionButton 
+          onAddTransaction={handleAddTransaction} 
+          previewMode={isViewer} 
+          activeTab={activeTab}
+        />
       </div>
     </div>
     </>

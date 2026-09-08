@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Transaction, Todo, AppEvent } from '../types';
 import { TrendingUp, TrendingDown, AlertTriangle, Target, Wallet, CheckSquare, Calendar, Sparkles, Clock, X, Check, MapPin, ChevronDown, ChevronLeft, ChevronRight, Info, Bell, PieChart as PieChartIcon, Copy, Edit2, Loader2 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Sector } from 'recharts';
 import { useStorage } from '../hooks/useStorage';
+import { motion, AnimatePresence } from 'motion/react';
 
 const getBankInfo = (acc: string) => {
   if (!acc) return null;
@@ -23,6 +24,23 @@ const getBankInfo = (acc: string) => {
   if (clean.length === 15) return { name: 'BRI', logo: 'https://upload.wikimedia.org/wikipedia/commons/9/9a/BRI_2025_%28with_full_name%29.svg' };
   
   return null;
+};
+
+const renderActiveShape = (props: any) => {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
+  return (
+    <g>
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+      />
+    </g>
+  );
 };
 
 interface DashboardProps {
@@ -98,6 +116,8 @@ export default function Dashboard({
   isOnline = true
 }: DashboardProps) {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [chartFilter, setChartFilter] = useState<'semua' | '15' | '7' | '3'>('semua');
+  const chartScrollRef = useRef<HTMLDivElement>(null);
   const [isMonthDropdownOpen, setIsMonthDropdownOpen] = useState(false);
   
   const [localAccountNumber, setLocalAccountNumber] = useState('');
@@ -480,26 +500,68 @@ export default function Dashboard({
   // Generate selected month data
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
   
-  const monthlyDataMap = transactions.reduce((acc, t) => {
-    if (t.date.startsWith(yearMonthStr)) {
-      if (!acc[t.date]) acc[t.date] = { Pemasukan: 0, Pengeluaran: 0 };
-      acc[t.date][t.type === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran'] += t.amount;
-    }
-    return acc;
-  }, {} as Record<string, { Pemasukan: number; Pengeluaran: number }>);
+  const chartData = useMemo(() => {
+    // Memetakan semua transaksi (tanpa filter bulan) agar filter rentang hari bisa melintasi bulan
+    const dailyDataMap = transactions.reduce((acc, t) => {
+      const dateStr = t.date.split('T')[0]; // Format: YYYY-MM-DD
+      if (!acc[dateStr]) acc[dateStr] = { Pemasukan: 0, Pengeluaran: 0 };
+      acc[dateStr][t.type === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran'] += t.amount;
+      return acc;
+    }, {} as Record<string, { Pemasukan: number; Pengeluaran: number }>);
 
-  const chartData = [];
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dateStr = `${yearMonthStr}-${String(day).padStart(2, '0')}`;
-    const data = monthlyDataMap[dateStr] || { Pemasukan: 0, Pengeluaran: 0 };
-    const dateLabel = new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
-    
-    chartData.push({
-      date: dateLabel,
-      Pemasukan: data.Pemasukan,
-      Pengeluaran: data.Pengeluaran,
-    });
+    let data = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${yearMonthStr}-${String(day).padStart(2, '0')}`;
+      const dayData = dailyDataMap[dateStr] || { Pemasukan: 0, Pengeluaran: 0 };
+      const dateLabel = new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      
+      data.push({
+        date: dateLabel,
+        Pemasukan: dayData.Pemasukan,
+        Pengeluaran: dayData.Pengeluaran,
+      });
+    }
+    return data;
+  }, [transactions, daysInMonth, yearMonthStr]);
+
+  let chartWidthPercent = 100;
+  if (chartFilter !== 'semua') {
+    const viewDays = parseInt(chartFilter, 10);
+    chartWidthPercent = (daysInMonth / viewDays) * 100;
   }
+
+  // Auto-scroll ke transaksi terakhir
+  useEffect(() => {
+    if (chartFilter !== 'semua' && chartScrollRef.current) {
+      // Cari index hari terakhir yang memiliki transaksi di bulan tersebut
+      let lastIndex = chartData.length - 1;
+      for (let i = chartData.length - 1; i >= 0; i--) {
+        if (chartData[i].Pemasukan > 0 || chartData[i].Pengeluaran > 0) {
+          lastIndex = i;
+          break;
+        }
+      }
+
+      // Beri sedikit waktu agar Recharts SVG ter-render (width % nya teraplikasikan)
+      const timeoutId = setTimeout(() => {
+        if (!chartScrollRef.current) return;
+        const container = chartScrollRef.current;
+        const scrollWidth = container.scrollWidth;
+        const clientWidth = container.clientWidth;
+        
+        if (scrollWidth > clientWidth) {
+          const itemWidth = scrollWidth / chartData.length;
+          // Target scroll agar item terakhir terlihat di bagian ujung kanan
+          let targetScroll = ((lastIndex + 1) * itemWidth) - clientWidth + (itemWidth / 2);
+          if (targetScroll < 0) targetScroll = 0;
+          
+          container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+        }
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [chartFilter, chartData, selectedMonth, selectedYear]);
 
   // Data untuk Pie Chart (Kategori Pengeluaran Bulan Ini)
   const PIE_COLORS = ['#4A6741', '#E63946', '#F4A261', '#E9C46A', '#2A9D8F', '#264653', '#8AB17D', '#E29578'];
@@ -515,6 +577,46 @@ export default function Dashboard({
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
   }, [transactions, yearMonthStr]);
+
+  const yearlyCategoryData = useMemo(() => {
+    const expenses = transactions.filter(t => t.type === 'pengeluaran' && t.date.startsWith(`${selectedYear}-`));
+    const grouped = expenses.reduce((acc, curr) => {
+      const cat = curr.category || 'Lainnya';
+      acc[cat] = (acc[cat] || 0) + curr.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [transactions, selectedYear]);
+
+  const allTimeCategoryData = useMemo(() => {
+    const expenses = transactions.filter(t => t.type === 'pengeluaran');
+    const grouped = expenses.reduce((acc, curr) => {
+      const cat = curr.category || 'Lainnya';
+      acc[cat] = (acc[cat] || 0) + curr.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [transactions]);
+
+  const [categoryView, setCategoryView] = useState<'bulan' | 'tahun' | 'semua'>('bulan');
+  const [showAllMenu, setShowAllMenu] = useState(false);
+  const [activePieIndex, setActivePieIndex] = useState<number | undefined>(undefined);
+  const [isPieAnimating, setIsPieAnimating] = useState(true);
+
+  useEffect(() => {
+    // Reset animation state when category view changes
+    setIsPieAnimating(true);
+    const timer = setTimeout(() => {
+      setIsPieAnimating(false);
+    }, 1500); // Wait for recharts animation to finish
+    return () => clearTimeout(timer);
+  }, [categoryView]);
 
   if (activeView === 'kebutuhan') {
     // Sort todos: done items at top, then by original order
@@ -929,32 +1031,7 @@ export default function Dashboard({
       )}
 
       <div className="flex flex-col gap-5 lg:gap-6">
-      {todaysEvents.length > 0 && (
-        <div className="bg-white/60 backdrop-blur-md border border-white/60 rounded-2xl px-4 py-2.5 shadow-sm flex items-center gap-3 relative overflow-hidden h-[56px] shrink-0">
-          <div className="w-9 h-9 rounded-full bg-[#4A6741]/10 flex items-center justify-center shrink-0">
-            <Bell className="w-4.5 h-4.5 text-[#4A6741]" />
-          </div>
-          <div className="flex-1 relative h-full overflow-hidden">
-            <div 
-              className="absolute w-full transition-transform duration-500 ease-in-out"
-              style={{ transform: `translateY(-${currentEventIndex * 36}px)` }}
-            >
-              {todaysEvents.map((event, idx) => (
-                <div key={idx} className="h-[36px] flex flex-col justify-center">
-                  <p className="text-[12px] font-bold text-[#2D2D2A] truncate leading-tight">
-                    {event.title}
-                  </p>
-                  <p className="text-[10px] text-[#7A7A72] truncate mt-0.5">
-                    Agenda Hari Ini {event.location ? `• ${event.location}` : ''}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="flex flex-col lg:grid lg:grid-cols-12 gap-5 lg:gap-6">
-        <div className="lg:col-span-5 space-y-5">
+        <div className="space-y-5">
         <div 
           className="bg-[#2D2D2A] p-6 lg:p-7 rounded-[32px] border border-white/10 shadow-lg relative overflow-hidden"
         >
@@ -1066,62 +1143,47 @@ export default function Dashboard({
         </div>
       </div>
 
-      <div className="lg:col-span-7 space-y-5 flex flex-col">
+      <div className="space-y-5 flex flex-col">
         
-        {/* Action Cards & Riwayat Terakhir Compact */}
+        {/* Action Buttons Grid */}
         <div className="flex flex-col gap-4">
-          
-          {/* Riwayat Terakhir Compact */}
-          {latestTx && (
-            <div className="bg-white/60 backdrop-blur-xl px-5 py-3.5 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                {latestTx.type === 'pemasukan' ? <TrendingUp className="w-4 h-4 text-[#4A6741]" /> : <TrendingDown className="w-4 h-4 text-[#E63946]" />}
-                <span className={`text-[13px] font-bold ${latestTx.type === 'pemasukan' ? 'text-[#4A6741]' : 'text-[#E63946]'}`}>
-                  {latestTx.type === 'pemasukan' ? '+' : '-'} {isHidden ? 'Rp ***' : `Rp ${latestTx.amount.toLocaleString('id-ID')}`}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-[#7A7A72] font-medium">
-                <span>{new Date(latestTx.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</span>
-                <span className="opacity-50">•</span>
-                <span>{latestTx.time}</span>
-              </div>
-            </div>
-          )}
-
-          {/* 3 Action Buttons */}
-          <div className="grid grid-cols-3 gap-3 mt-1 relative z-20">
+          <div className="grid grid-cols-4 gap-2.5 mt-1 relative z-20">
+            {([
+              { id: 'kebutuhan', title: 'Kebutuhan', icon: 'https://cdn-icons-png.flaticon.com/128/2099/2099125.png', filter: false, onClick: () => setActiveView('kebutuhan') },
+              { id: 'jadwal', title: 'Jadwal', icon: 'https://cdn-icons-png.flaticon.com/128/3597/3597050.png', filter: false, onClick: () => setActiveView('jadwal') },
+              { id: 'agenda', title: 'Agenda', icon: 'https://cdn-icons-png.flaticon.com/128/11989/11989775.png', filter: false, onClick: () => setActiveView('acara') },
+              { id: 'laporan', title: 'Laporan', icon: 'https://cdn-icons-png.flaticon.com/128/3212/3212683.png', filter: true, onClick: () => { document.getElementById('chart-section')?.scrollIntoView({ behavior: 'smooth' }) } },
+              { id: 'keluarga', title: 'Keluarga', icon: 'https://cdn-icons-png.flaticon.com/128/3126/3126647.png', filter: true, onClick: () => { alert('Fitur Keluarga akan segera hadir!'); } },
+              { id: 'tagihan', title: 'Tagihan', icon: 'https://cdn-icons-png.flaticon.com/128/3258/3258451.png', filter: true, onClick: () => { alert('Fitur Tagihan akan segera hadir!'); } },
+              { id: 'tabungan', title: 'Tabungan', icon: 'https://cdn-icons-png.flaticon.com/128/2489/2489756.png', filter: true, onClick: () => { alert('Fitur Tabungan akan segera hadir!'); } },
+            ].slice(0, showAllMenu ? 7 : 3)).map((item) => (
+              <button 
+                key={item.id}
+                onClick={item.onClick}
+                className="transition-all duration-300 p-1 active:translate-y-[1px] flex flex-col items-center justify-start gap-1.5 group"
+              >
+                <img src={item.icon} alt={item.title} className="w-[24px] h-[24px] object-contain opacity-80 group-hover:opacity-100 transition-opacity" style={item.filter ? { filter: 'brightness(0) saturate(100%) invert(35%) sepia(16%) saturate(1661%) hue-rotate(63deg) brightness(97%) contrast(89%)' } : {}} />
+                <span className="text-[10px] tracking-wide text-[#2D2D2A] font-bold">{item.title}</span>
+              </button>
+            ))}
             <button 
-              onClick={() => setActiveView('kebutuhan')}
-              className="bg-white/60 hover:bg-white/80 active:bg-black/[0.04] transition-all duration-300 backdrop-blur-xl p-3 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] active:shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] active:translate-y-[1px] flex flex-col items-center justify-center gap-1.5 group"
+              onClick={() => setShowAllMenu(!showAllMenu)}
+              className="transition-all duration-300 p-1 active:translate-y-[1px] flex flex-col items-center justify-start gap-1.5 group"
             >
-              <img src="https://cdn-icons-png.flaticon.com/128/2099/2099125.png" alt="Kebutuhan" className="w-[20px] h-[20px] object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[11px] tracking-wide text-[#2D2D2A]">Kebutuhan</span>
-            </button>
-            <button 
-              onClick={() => setActiveView('jadwal')}
-              className="bg-white/60 hover:bg-white/80 active:bg-black/[0.04] transition-all duration-300 backdrop-blur-xl p-3 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] active:shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] active:translate-y-[1px] flex flex-col items-center justify-center gap-1.5 group"
-            >
-              <img src="https://cdn-icons-png.flaticon.com/128/3597/3597050.png" alt="Jadwal" className="w-[20px] h-[20px] object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[11px] tracking-wide text-[#2D2D2A]">Jadwal</span>
-            </button>
-            <button 
-              onClick={() => setActiveView('acara')}
-              className="bg-white/60 hover:bg-white/80 active:bg-black/[0.04] transition-all duration-300 backdrop-blur-xl p-3 rounded-[20px] border border-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.02)] active:shadow-[inset_0_4px_8px_rgba(0,0,0,0.1),inset_0_2px_4px_rgba(0,0,0,0.06),0_1px_0_rgba(255,255,255,0.8)] active:translate-y-[1px] flex flex-col items-center justify-center gap-1.5 group"
-            >
-              <img src="https://cdn-icons-png.flaticon.com/128/11989/11989775.png" alt="Agenda" className="w-[20px] h-[20px] object-contain opacity-80 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[11px] tracking-wide text-[#2D2D2A]">Agenda</span>
+              <img src="https://cdn-icons-png.flaticon.com/128/12890/12890802.png" alt={showAllMenu ? "Tutup" : "Lainnya"} className="w-[24px] h-[24px] object-contain opacity-80 group-hover:opacity-100 transition-opacity" style={{ filter: 'brightness(0) saturate(100%) invert(35%) sepia(16%) saturate(1661%) hue-rotate(63deg) brightness(97%) contrast(89%)' }} />
+              <span className="text-[10px] tracking-wide text-[#2D2D2A] font-bold">{showAllMenu ? "Tutup" : "Lainnya"}</span>
             </button>
           </div>
         </div>
 
         {/* Chart Section */}
-        <div className="bg-white/60 backdrop-blur-xl p-6 rounded-[32px] border border-white/80 shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex-1 min-h-[300px] flex flex-col">
-        <div className="flex items-center justify-between mb-6 relative z-20">
+        <div className="bg-white/60 backdrop-blur-xl p-5 rounded-2xl border border-white/80 shadow-[0_4px_24px_rgba(0,0,0,0.03)] flex-1 min-h-[250px] flex flex-col mb-4">
+        <div className="flex items-center justify-between mb-3 relative z-20">
           <h3 className="font-bold text-base text-[#2D2D2A]">Grafik Transaksi</h3>
           <div className="relative">
             <button 
               onClick={() => setIsMonthDropdownOpen(!isMonthDropdownOpen)}
-              className="flex items-center gap-1.5 text-[11px] bg-[#4A6741]/10 text-[#4A6741] font-bold rounded-full px-3 py-1.5 transition-colors hover:bg-[#4A6741]/20 outline-none"
+              className="flex items-center gap-1 text-[10px] bg-[#4A6741]/10 text-[#4A6741] font-bold rounded-lg px-2.5 py-1 transition-colors hover:bg-[#4A6741]/20 outline-none"
             >
               {months[selectedMonth]} {selectedYear}
               <svg className={`w-3 h-3 transition-transform ${isMonthDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -1130,7 +1192,7 @@ export default function Dashboard({
             {isMonthDropdownOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setIsMonthDropdownOpen(false)}></div>
-                <div className="absolute right-0 mt-2 w-36 bg-white/90 backdrop-blur-xl border border-white/60 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] py-2 max-h-56 overflow-y-auto z-40 custom-scrollbar">
+                <div className="absolute right-0 mt-1.5 w-32 bg-white/90 backdrop-blur-xl border border-white/60 rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] py-1.5 max-h-56 overflow-y-auto z-40 custom-scrollbar">
                   {months.map((m, i) => (
                     <button
                       key={i}
@@ -1138,7 +1200,7 @@ export default function Dashboard({
                         setSelectedMonth(i);
                         setIsMonthDropdownOpen(false);
                       }}
-                      className={`w-full text-left px-4 py-2.5 text-[11px] font-medium transition-colors outline-none ${selectedMonth === i ? 'bg-[#4A6741]/10 text-[#4A6741] font-bold' : 'text-[#7A7A72] hover:bg-[#F0EFEC]'}`}
+                      className={`w-full text-left px-3 py-2 text-[10px] font-medium transition-colors outline-none ${selectedMonth === i ? 'bg-[#4A6741]/10 text-[#4A6741] font-bold' : 'text-[#7A7A72] hover:bg-[#F0EFEC]'}`}
                     >
                       {m} {selectedYear}
                     </button>
@@ -1148,134 +1210,236 @@ export default function Dashboard({
             )}
           </div>
         </div>
+
+        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto no-scrollbar pb-1">
+          <button 
+            onClick={() => setChartFilter('semua')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors ${chartFilter === 'semua' ? 'bg-[#2D2D2A] text-white' : 'bg-white/60 text-[#7A7A72] hover:bg-white/80 border border-[#F0EFEC]'}`}
+          >
+            Semua
+          </button>
+          <button 
+            onClick={() => setChartFilter('15')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors ${chartFilter === '15' ? 'bg-[#2D2D2A] text-white' : 'bg-white/60 text-[#7A7A72] hover:bg-white/80 border border-[#F0EFEC]'}`}
+          >
+            15 Hari
+          </button>
+          <button 
+            onClick={() => setChartFilter('7')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors ${chartFilter === '7' ? 'bg-[#2D2D2A] text-white' : 'bg-white/60 text-[#7A7A72] hover:bg-white/80 border border-[#F0EFEC]'}`}
+          >
+            7 Hari
+          </button>
+          <button 
+            onClick={() => setChartFilter('3')}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap transition-colors ${chartFilter === '3' ? 'bg-[#2D2D2A] text-white' : 'bg-white/60 text-[#7A7A72] hover:bg-white/80 border border-[#F0EFEC]'}`}
+          >
+            3 Hari
+          </button>
+        </div>
         
         {chartData.length > 0 ? (
-          <div className="w-full -ml-2 outline-none select-none [&_*]:outline-none [&_*]:focus:outline-none" style={{ width: '100%', minWidth: 200, height: 192, minHeight: 192, WebkitTapHighlightColor: 'transparent' }}>
-            <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1} className="outline-none">
-              <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }} className="outline-none">
-                <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#E8E6E1" />
-                <XAxis 
-                  dataKey="date" 
-                  fontSize={9} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{ fill: '#7A7A72' }} 
-                  dy={10} 
-                  minTickGap={25}
-                />
-                <YAxis 
-                  fontSize={9} 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tickFormatter={(val) => isHidden ? '***' : (val >= 1000000 ? `${(val/1000000).toFixed(0)}M` : val >= 1000 ? `${(val/1000).toFixed(0)}k` : val)} 
-                  tick={{ fill: '#7A7A72' }} 
-                  width={35} 
-                />
-                <Tooltip 
-                  cursor={{fill: '#F0EFEC', opacity: 0.6}} 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', fontSize: '11px', padding: '10px', fontWeight: 'bold' }} 
-                  formatter={(value: number) => [isHidden ? 'Rp ***' : `Rp ${value.toLocaleString('id-ID')}`, undefined]}
-                  labelStyle={{ color: '#7A7A72', marginBottom: '4px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}
-                />
-                <Bar dataKey="Pemasukan" fill="#4A6741" radius={[4, 4, 0, 0]} maxBarSize={12} />
-                <Bar dataKey="Pengeluaran" fill="#E63946" radius={[4, 4, 0, 0]} maxBarSize={12} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <div className="h-40 flex items-center justify-center">
-            <p className="text-sm text-[#7A7A72]">Belum ada data grafik</p>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white/80 backdrop-blur-xl p-6 rounded-[32px] border border-white shadow-[0_4px_24px_rgba(0,0,0,0.03)] mb-6">
-        <div className="flex justify-between items-start mb-5">
-          <div className="flex items-center gap-3">
-            <div>
-              <h3 className="font-bold text-base text-[#2D2D2A] mb-0.5">Kategori Pengeluaran</h3>
-              <p className="text-[11px] text-[#7A7A72] font-medium">{months[selectedMonth]} {selectedYear}</p>
-            </div>
-          </div>
-        </div>
-        
-        {categoryData.length > 0 ? (
-          <div className="flex flex-col gap-6">
-            <div className="w-full" style={{ width: '100%', minWidth: 200, height: 192, minHeight: 192 }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={4}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', fontSize: '11px', padding: '10px', fontWeight: 'bold' }}
-                    formatter={(value: number, name: string) => [isHidden ? "Rp ***" : `Rp ${value.toLocaleString("id-ID")}`, name]}
-                    itemStyle={{ color: '#2D2D2A' }}
+          <div 
+            ref={chartScrollRef}
+            className={`w-full no-scrollbar ${chartFilter === 'semua' ? 'overflow-x-hidden' : 'overflow-x-auto'}`} 
+            style={{ WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}
+          >
+            <div className="outline-none select-none [&_*]:outline-none [&_*]:focus:outline-none" style={{ width: chartFilter === 'semua' ? '100%' : `${chartWidthPercent}%`, minWidth: '100%', height: 160, minHeight: 160, WebkitTapHighlightColor: 'transparent' }}>
+              <ResponsiveContainer key={chartFilter} width="100%" height="100%" minWidth={1} minHeight={1} className="outline-none">
+                <BarChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }} className="outline-none">
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#E8E6E1" />
+                  <XAxis 
+                    dataKey="date" 
+                    fontSize={9} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{ fill: '#7A7A72' }} 
+                    dy={5} 
+                    minTickGap={20}
                   />
-                </PieChart>
+                  <YAxis 
+                    fontSize={9} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(val) => isHidden ? '***' : (val >= 1000000 ? `${(val/1000000).toFixed(0)}M` : val >= 1000 ? `${(val/1000).toFixed(0)}k` : val)} 
+                    tick={{ fill: '#7A7A72' }} 
+                    width={35} 
+                  />
+                  <Tooltip 
+                    cursor={{fill: '#F0EFEC', opacity: 0.6}} 
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.06)', fontSize: '10px', padding: '6px', fontWeight: 'bold' }} 
+                    formatter={(value: number) => [isHidden ? 'Rp ***' : `Rp ${value.toLocaleString('id-ID')}`, undefined]}
+                    labelStyle={{ color: '#7A7A72', marginBottom: '2px', fontSize: '9px', textTransform: 'uppercase', fontWeight: 'bold' }}
+                  />
+                  <Bar dataKey="Pemasukan" fill="#4A6741" radius={[3, 3, 0, 0]} maxBarSize={10} />
+                  <Bar dataKey="Pengeluaran" fill="#E63946" radius={[3, 3, 0, 0]} maxBarSize={10} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
-            
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              {categoryData.map((entry, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
-                  <div className="flex-1 truncate">
-                    <p className="text-[11px] font-bold text-[#2D2D2A] truncate">{entry.name}</p>
-                    <p className="text-[10px] text-[#7A7A72] font-medium">{isHidden ? 'Rp ***' : `Rp ${(entry.value / 1000).toFixed(0)}k`}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         ) : (
-          <div className="h-40 flex items-center justify-center">
-            <p className="text-sm text-[#7A7A72]">Belum ada pengeluaran bulan ini</p>
+          <div className="h-32 flex items-center justify-center">
+            <p className="text-[11px] font-medium text-[#7A7A72]">Belum ada data grafik</p>
           </div>
         )}
       </div>
 
-      <div className="bg-white/80 backdrop-blur-xl p-6 rounded-[32px] border border-white shadow-[0_4px_24px_rgba(0,0,0,0.03)]">
-        <div className="flex justify-between items-start mb-5">
-          <div>
-            <h3 className="font-bold text-base text-[#2D2D2A] mb-0.5">Budget Bulanan</h3>
-            <p className="text-[11px] text-[#7A7A72] font-medium">{months[selectedMonth]} {selectedYear}</p>
+      <div className="bg-white/80 backdrop-blur-xl p-5 rounded-2xl border border-white shadow-[0_4px_24px_rgba(0,0,0,0.03)] mb-4">
+        <div className="flex flex-col gap-3 mb-4">
+          <h3 className="font-bold text-base text-[#2D2D2A]">Kategori Pengeluaran</h3>
+          <div className="flex items-center gap-1.5">
+            <button 
+              onClick={() => setCategoryView('semua')}
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-colors ${categoryView === 'semua' ? 'bg-[#4A6741] text-white' : 'bg-black/5 text-[#7A7A72]'}`}
+            >
+              Semua
+            </button>
+            <button 
+              onClick={() => setCategoryView('tahun')}
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-colors ${categoryView === 'tahun' ? 'bg-[#4A6741] text-white' : 'bg-black/5 text-[#7A7A72]'}`}
+            >
+              Tahun Ini
+            </button>
+            <button 
+              onClick={() => setCategoryView('bulan')}
+              className={`text-[10px] font-bold px-2.5 py-1 rounded-lg transition-colors ${categoryView === 'bulan' ? 'bg-[#4A6741] text-white' : 'bg-black/5 text-[#7A7A72]'}`}
+            >
+              Bulan Ini
+            </button>
           </div>
-          <span className="text-[11px] font-bold text-[#4A6741] bg-[#4A6741]/10 px-2.5 py-1 rounded-full">{Math.min(persentaseBudget, 100).toFixed(0)}% Terpakai</span>
         </div>
         
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between items-end mb-2.5">
-              <span className="text-xs text-[#7A7A72] font-medium">Total Terpakai</span>
-              <span className="font-bold text-sm text-[#2D2D2A]">{isHidden ? 'Rp *** / ***' : <>Rp {pengeluaranBulan.toLocaleString('id-ID')} <span className="text-[10px] text-[#7A7A72] font-normal">/ {budget.toLocaleString('id-ID')}</span></>}</span>
-            </div>
-            {/* Progress Bar */}
-            <div className="h-1.5 w-full bg-[#F0EFEC] rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all duration-500 ${persentaseBudget > 90 ? 'bg-[#E63946]' : persentaseBudget > 75 ? 'bg-[#D4A373]' : 'bg-[#4A6741]'}`} 
-                style={{ width: `${Math.min(persentaseBudget, 100)}%` }}
-              ></div>
-            </div>
-            {persentaseBudget > 90 && (
-              <p className="text-[10px] text-[#E63946] font-bold mt-3 flex items-center gap-1 uppercase tracking-wider">
-                <AlertTriangle className="w-3 h-3" /> Mendekati Batas
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={categoryView}
+            initial={{ opacity: 0, x: categoryView === 'semua' ? -20 : categoryView === 'tahun' ? 0 : 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: categoryView === 'semua' ? 20 : categoryView === 'tahun' ? 0 : -20 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.1}
+            onDragEnd={(e, { offset }) => {
+              const swipe = offset.x;
+              if (swipe < -30) {
+                if (categoryView === 'semua') setCategoryView('tahun');
+                else if (categoryView === 'tahun') setCategoryView('bulan');
+              } else if (swipe > 30) {
+                if (categoryView === 'bulan') setCategoryView('tahun');
+                else if (categoryView === 'tahun') setCategoryView('semua');
+              }
+            }}
+          >
+            {(() => {
+              const baseCategoryData = categoryView === 'bulan' ? categoryData : categoryView === 'tahun' ? yearlyCategoryData : allTimeCategoryData;
+              let displayCategoryData = baseCategoryData;
+              
+              if (baseCategoryData.length > 4) {
+                const top3 = baseCategoryData.slice(0, 3);
+                const restValue = baseCategoryData.slice(3).reduce((acc, curr) => acc + curr.value, 0);
+                displayCategoryData = [...top3, { name: 'Lain-lain', value: restValue }];
+              }
+
+              const totalViewPengeluaran = baseCategoryData.reduce((acc, curr) => acc + curr.value, 0);
+              const viewBudget = categoryView === 'bulan' ? budget : categoryView === 'tahun' ? budget * 12 : null;
+              const viewPersentase = viewBudget && viewBudget > 0 ? (totalViewPengeluaran / viewBudget) * 100 : 0;
+
+              return displayCategoryData.length > 0 ? (
+                <div className="flex flex-col gap-4">
+                  {/* Bagian Atas: Chart & Top 4 (2x2 Grid) */}
+                  <div className="flex flex-col gap-6 items-center">
+                    <div className={`relative shrink-0 ${isPieAnimating ? "pointer-events-none" : ""}`} style={{ width: 140, height: 140 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            activeIndex={activePieIndex}
+                            activeShape={renderActiveShape}
+                            data={displayCategoryData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={45}
+                            outerRadius={65}
+                            paddingAngle={2}
+                            dataKey="value"
+                            stroke="none"
+                            onMouseEnter={(_, index) => setActivePieIndex(index)}
+                            onMouseLeave={() => setActivePieIndex(undefined)}
+                            onClick={(_, index) => setActivePieIndex(activePieIndex === index ? undefined : index)}
+                          >
+                            {displayCategoryData.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={activePieIndex !== undefined && activePieIndex !== index ? '#E5E5E5' : PIE_COLORS[index % PIE_COLORS.length]} 
+                                className="transition-all duration-300"
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', fontSize: '9px', padding: '4px 8px', fontWeight: 'bold' }}
+                            formatter={(value: number, name: string) => [isHidden ? "Rp ***" : `Rp ${(value/1000).toFixed(0)}k`, name]}
+                            itemStyle={{ color: '#2D2D2A', padding: 0 }}
+                            labelStyle={{ display: 'none' }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div className="w-full grid grid-cols-2 gap-x-4 gap-y-4">
+                      {displayCategoryData.map((entry, index) => (
+                        <div 
+                          key={index} 
+                          className={`flex items-stretch gap-2.5 transition-all duration-300 cursor-pointer ${activePieIndex !== undefined && activePieIndex !== index ? 'opacity-50 grayscale' : 'opacity-100'} ${isPieAnimating ? 'pointer-events-none' : ''}`}
+                          onMouseEnter={() => !isPieAnimating && setActivePieIndex(index)}
+                          onMouseLeave={() => !isPieAnimating && setActivePieIndex(undefined)}
+                          onClick={() => !isPieAnimating && setActivePieIndex(activePieIndex === index ? undefined : index)}
+                        >
+                          <div className="w-1.5 rounded-full shrink-0 transition-transform" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length], transform: activePieIndex === index ? 'scaleY(1.2)' : 'scaleY(1)' }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-[#2D2D2A] truncate">{entry.name}</p>
+                            <p className="text-[10px] text-[#7A7A72] font-semibold mt-0.5">{isHidden ? 'Rp ***' : `Rp ${(entry.value / 1000).toFixed(0)}k`}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bagian Bawah: Budget Progress Bar */}
+                  <div className="pt-3 border-t border-black/5">
+                    <div className="flex justify-between items-end mb-2">
+                      <span className="text-[10px] text-[#7A7A72] font-medium">Total Terpakai {categoryView === 'bulan' ? 'Bulan Ini' : categoryView === 'tahun' ? 'Tahun Ini' : ''}</span>
+                      <span className="font-bold text-xs text-[#2D2D2A]">
+                        {isHidden ? 'Rp ***' : `Rp ${totalViewPengeluaran.toLocaleString('id-ID')}`}
+                        {viewBudget && !isHidden && <span className="text-[9px] text-[#7A7A72] font-normal"> / {viewBudget.toLocaleString('id-ID')}</span>}
+                        {viewBudget && isHidden && <span className="text-[9px] text-[#7A7A72] font-normal"> / ***</span>}
+                      </span>
+                    </div>
+                    {viewBudget ? (
+                      <div className="h-1.5 w-full bg-[#F0EFEC] rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${viewPersentase > 90 ? 'bg-[#E63946]' : viewPersentase > 75 ? 'bg-[#D4A373]' : 'bg-[#4A6741]'}`} 
+                          style={{ width: `${Math.min(viewPersentase, 100)}%` }}
+                        ></div>
+                      </div>
+                    ) : (
+                      <div className="h-1.5 w-full bg-[#4A6741]/20 rounded-full overflow-hidden">
+                        <div className="h-full bg-[#4A6741] rounded-full" style={{ width: '100%' }}></div>
+                      </div>
+                    )}
+                    {viewBudget && viewPersentase > 90 && (
+                      <p className="text-[9px] text-[#E63946] font-bold mt-2 flex items-center gap-1 uppercase tracking-wider">
+                        <AlertTriangle className="w-3 h-3" /> Mendekati Batas
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-24 flex items-center justify-center text-center">
+                  <p className="text-[11px] text-[#7A7A72] font-medium">Belum ada pengeluaran {categoryView === 'bulan' ? 'bulan ini' : categoryView === 'tahun' ? 'tahun ini' : 'sama sekali'}</p>
+                </div>
+              );
+            })()}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
     </div>

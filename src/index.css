@@ -40,3 +40,10 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0,0,0,0.2);
 }
+
+body.is-scrolling .recharts-tooltip-wrapper {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

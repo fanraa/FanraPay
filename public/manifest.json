@@ -7,7 +7,7 @@
   "display": "standalone",
   "display_override": ["standalone", "window-controls-overlay"],
   "orientation": "portrait-primary",
-  "background_color": "#F8F7F4",
+  "background_color": "#ffffff",
   "theme_color": "#F8F7F4",
   "icons": [
     {
